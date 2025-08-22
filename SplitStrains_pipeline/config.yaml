@@ -1,0 +1,11 @@
+input_dir: "/n/data1/hms/dbmi/farhat/rollingDB/TRUST/Illumina_culture_WGS_processed"
+output_dir: "/n/scratch/users/s/sak0914/SplitStrains"
+isolates_to_run: "./isolates_to_run.tsv"
+scripts_dir: "./scripts"
+references_dir: "./references"
+min_read_length: 50
+median_depth: 15
+min_cov: 10
+genome_cov_prop: 0.0
+annot_VCF_name: "./VCFs_to_annot.txt"
+snpEff_db: "Mycobacterium_tuberculosis_h37rv"
