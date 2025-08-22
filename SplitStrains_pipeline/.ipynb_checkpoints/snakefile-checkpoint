@@ -1,0 +1,19 @@
+import numpy as np
+import pandas as pd
+
+configfile: "config.yaml"
+
+# Define the list of samples, either directly or through config
+input_dir = config["input_dir"]
+output_dir = config["output_dir"]
+
+df_samples = pd.read_csv(config['isolates_to_run'], sep='\t', header=None)
+samples_percents_dict = dict(zip(df_samples[0], df_samples[1]))
+
+include: "rules.smk"
+
+# Define rules in the Snakefile
+
+rule all:
+    input:
+        [f"{output_dir}/{sample_ID}/{percent}.removed.depth.tsv.gz" for sample_ID in samples_percents_dict.keys() for percent in samples_percents_dict[sample_ID].split(',')],
