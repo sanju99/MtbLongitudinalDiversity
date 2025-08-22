@@ -1,4 +1,4 @@
-__pycache__
-.snakemake
-.ipython_checkpoints
-./data/
+__pycache__/
+.snakemake/
+.ipynb_checkpoints/
+data/
