@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import glob, os, warnings, shutil, subprocess, re, sys
+import glob, os, warnings, shutil, subprocess, re, sys, argparse
 from Bio import Seq, SeqIO
 warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
@@ -15,29 +15,47 @@ TRUST_data_dir = "/home/sak0914/TRUST_data_processing"
 
 F2_thresh = 0.03
 
+parser = argparse.ArgumentParser()
+
+# f"{TRUST_data_dir}/processed_data/20250818_combined_patient_WGS_data.csv"
+parser.add_argument("-i", dest='input_file', type=str, required=True, help='Combined patient and WGS data')
+
+cmd_line_args = parser.parse_args()
+
+input_file = cmd_line_args.input_file
+
 
 ############################### THIS SCRIPT DETERMINES THE PIDS TO USE FOR LONGITUDINAL ANALYSIS ###############################
 
 
-df_patient_WGS = pd.read_csv(f"{TRUST_data_dir}/processed_data/20250818_combined_patient_WGS_data.csv")[['pid', 'Original_ID', 'SampleID', 'Sampling_Week']]
+df_patient_WGS = pd.read_csv(input_file)[['pid', 'Original_ID', 'SampleID', 'Sampling_Week']]
 
-pids_longitudinal = pd.DataFrame(df_patient_WGS.groupby('pid')['Sampling_Week'].nunique()).query("Sampling_Week > 1").index.values
-print(f"{len(pids_longitudinal)} pids have multiple timepoints")
-
-df_longitudinal = df_patient_WGS.query("pid in @pids_longitudinal")
-
-df_lineages = extract_lineages(df_longitudinal, 'SampleID', "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF")
+df_lineages = extract_lineages(df_patient_WGS, 'SampleID', "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF")
 
 # combine with lineages
-df_longitudinal = df_longitudinal.merge(df_lineages, on='SampleID', how='inner')
+df_patient_WGS = df_patient_WGS.merge(df_lineages, on='SampleID', how='inner')
 
 # keep only samples taken in the first 12 weeks (during treatment). We don't want to consider follow-up samples
-df_longitudinal = df_longitudinal.query("Sampling_Week <= 12")
+df_patient_WGS = df_patient_WGS.query("Sampling_Week <= 12")
 
-df_longitudinal['Paired_Sample_Num'] = df_longitudinal.sort_values(['pid', 'Sampling_Week', 'Original_ID', 'SampleID']).groupby("pid").cumcount() + 1
+df_patient_WGS['Paired_Sample_Num'] = df_patient_WGS.sort_values(['pid', 'Sampling_Week', 'Original_ID', 'SampleID']).groupby("pid").cumcount() + 1
 
 # Assign sample_num (total per patient)
-df_longitudinal["total_samples"] = df_longitudinal.groupby("pid")["Sampling_Week"].transform("size")
+df_patient_WGS["total_samples"] = df_patient_WGS.groupby("pid")["Sampling_Week"].transform("size")
+
+# save this to use if you only want those with at least 1 sample
+################ REMOVE RE-ENROLLED PARTICIPANTS BECAUSE THEY'RE NOT INDEPENDENT OF EACH OTHER ################
+
+# the outcomes dataframe has already handled this and only kept unique patients
+df_tx_outcomes = pd.read_csv(f"{TRUST_data_dir}/processed_data/tx_outcomes.csv")
+
+df_patient_WGS.query("pid in @df_tx_outcomes.pid").to_csv("../data/pids_WGS_data.csv", index=False)
+
+# keep only those that have >1 timepoint
+pids_longitudinal = pd.DataFrame(df_patient_WGS.groupby('pid')['Sampling_Week'].nunique()).query("Sampling_Week > 1").index.values
+print(f"{len(pids_longitudinal)}/{df_patient_WGS.pid.nunique()} pids have multiple timepoints")
+
+df_longitudinal = df_patient_WGS.query("pid in @pids_longitudinal")
 
 # remove pids with only 1 sample now, after removing contaminated samples
 df_longitudinal = df_longitudinal.query("total_samples > 1")
@@ -115,10 +133,10 @@ df_longitudinal_keep["total_samples"] = df_longitudinal_keep.groupby("pid")["Sam
 df_longitudinal_keep = df_longitudinal_keep.query("total_samples > 1")
 
 # save a table of the removed pids to another file to inspect manually later
-df_discordant_pids = df_longitudinal.query("pid not in @df_longitudinal_keep.pid")[['pid', 'Original_ID', 'SampleID', 'Sampling_Week', 'Coll2014', 'Freschi2020']]
+df_discordant_pids = df_longitudinal.query("pid not in @df_longitudinal_keep.pid")[['pid', 'Original_ID', 'SampleID', 'Sampling_Week', 'F2', 'Coll2014', 'Freschi2020']]
 
 print(f"    {df_discordant_pids.pid.nunique()} pids have multiple unmixed lineages")
-df_discordant_pids.to_csv("../data/pids_discordant_unmixed_lineages.csv", index=False)
+df_discordant_pids.sort_values(['pid', 'Sampling_Week']).to_csv("../data/pids_discordant_unmixed_lineages.csv", index=False)
 
 print(f"{df_longitudinal_keep.pid.nunique()} pids have at least 2 WGS samples without confidently called discordant lineages")
 
@@ -130,4 +148,4 @@ df_longitudinal_keep.loc[df_longitudinal_keep['Paired_Sample_Num'] != 1, 'Paired
 
 assert len(df_longitudinal_keep) == 2 * df_longitudinal_keep.pid.nunique()
 
-df_longitudinal_keep.to_csv("../data/pids_WGS_data.csv", index=False)
+df_longitudinal_keep.query("pid in @df_tx_outcomes.pid").to_csv("../data/longitudinal_pids_WGS_data.csv", index=False)

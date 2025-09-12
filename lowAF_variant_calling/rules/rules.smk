@@ -10,7 +10,7 @@ scripts_dir = config["scripts_dir"]
 references_dir = config["references_dir"]
 
 conda_directory = config['conda_dir']
-primary_directory = "/home/sak0914/longitudinal_changes/lowAF_pipeline"
+primary_directory = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling"
 
 
 
@@ -78,7 +78,7 @@ rule trim_adapters:
         fastp_html = f"{run_out_dir}/fastp/fastp.html",
         fastp_json = f"{run_out_dir}/fastp/fastp.json"
     conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
+        f"{conda_directory}/envs/read_processing_aln.yaml"
     params:
         min_read_length = config["min_read_length"]
     threads:
@@ -105,7 +105,7 @@ rule kraken_classification:
         kraken_report = f"{run_out_dir}/kraken/kraken_report_standard_DB.txt",
         kraken_classifications = f"{run_out_dir}/kraken/kraken_classifications_standard_DB",
     conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
+        f"{conda_directory}/envs/read_processing_aln.yaml"
     params:
         kraken_db = config['kraken_db'],
         output_dir = output_dir,
@@ -160,15 +160,38 @@ rule extract_kraken_reads:
         fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R1.kraken.filtered.fastq",
         fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R2.kraken.filtered.fastq",    
     conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
+        f"{conda_directory}/envs/read_processing_aln.yaml"
     shell:
         """
         # seqtk will write outputs to unzipped files, even if the input was compressed
         seqtk subseq {input.fastq1_trimmed} {input.keep_read_names} > {output.fastq1_trimmed_classified} 
         seqtk subseq {input.fastq2_trimmed} {input.keep_read_names} > {output.fastq2_trimmed_classified} 
         
-        rm {input.fastq1_trimmed}
-        rm {input.fastq2_trimmed}
+        rm {input.fastq1_trimmed} {input.fastq2_trimmed}
+        """
+        
+        
+        
+rule fastlin_typing:
+    input:
+        fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R1.kraken.filtered.fastq",
+        fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R2.kraken.filtered.fastq",
+    output:
+        fastq1_trimmed_classified_gzipped = temp(f"{run_out_dir}/fastlin/{{run_ID}}_1.fastq.gz"),
+        fastq2_trimmed_classified_gzipped = temp(f"{run_out_dir}/fastlin/{{run_ID}}_2.fastq.gz"),
+        fastlin_dir = directory(f"{run_out_dir}/fastlin"),
+        fastlin_output = f"{run_out_dir}/fastlin/output.txt"
+    conda:
+        f"{primary_directory}/envs/read_processing_aln.yaml"
+    params:
+        fastlin_barcodes = os.path.join(primary_directory, references_dir, "phylogeny", "MTBC_barcodes.tsv"),
+    shell:
+        """
+        gzip -c {input.fastq1_trimmed_classified} > {output.fastq1_trimmed_classified_gzipped}
+        gzip -c {input.fastq2_trimmed_classified} > {output.fastq2_trimmed_classified_gzipped}
+        
+        # there's one TRUST sample with coverage > 900
+        fastlin -d {output.fastlin_dir} -b {params.fastlin_barcodes} -o {output.fastlin_output} -x 1000
         """
 
 
@@ -181,9 +204,9 @@ rule align_reads_mark_duplicates:
         sam_file = temp(f"{run_out_dir}/bam/{{run_ID}}.sam"),
         bam_file = temp(f"{run_out_dir}/bam/{{run_ID}}.bam"),
         bam_index_file = temp(f"{run_out_dir}/bam/{{run_ID}}.bam.bai"),
-        bam_file_dedup = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam",
-        bam_file_dedup_metrics = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam.metrics",
-        bam_index_file_dedup = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam.bai",
+        bam_file_markdup = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam",
+        bam_file_markdup_metrics = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam.metrics",
+        bam_index_file_dedup = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam.bai",
     params:
         output_dir = output_dir,
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
@@ -219,19 +242,19 @@ rule align_reads_mark_duplicates:
         samtools index {output.bam_file}
 
         # -Xmx6g specifies to allocate 6 GB
-        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_dedup} REMOVE_DUPLICATES=true M={output.bam_file_dedup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
+        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_markdup} REMOVE_DUPLICATES=false M={output.bam_file_markdup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
 
         # index the deduplicated alignment with samtools, which will create a dedup_bam_file.bai file
-        samtools index {output.bam_file_dedup}
+        samtools index {output.bam_file_markdup}
         
-        rm {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified}
+        # rm {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified}
         """
 
 
 
 rule get_BAM_file_depths:
     input:
-        bam_file_dedup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.dedup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
+        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.markDup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
         sample_out_dir = sample_out_dir,
@@ -239,13 +262,13 @@ rule get_BAM_file_depths:
         depth_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv"),
         depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz",
     conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
+        f"{conda_directory}/envs/read_processing_aln.yaml"
     shell:
         """
         # get all runs associated with this sample_ID and compute depth
         # -a computes depth at all positions, not just those with non-zero depth
         # -Q is for minimum mapping quality: use 1, so that multiply mapped reads aren't counted. These have mapping quality of 0
-        samtools depth -a -Q 1 {input.bam_file_dedup} > {output.depth_file}
+        samtools depth -a -Q 1 {input.bam_file_markdup} > {output.depth_file}
 
         # get the length of the reference genome
         genome_length=$(tail -n +2 {params.ref_genome} | tr -d '\n' | wc -c) # remove first line (FASTA header) and newline characters, then count characters to get ref genome length
@@ -267,7 +290,7 @@ rule get_BAM_file_depths:
 rule get_BAMs_passing_QC_thresholds:
     input:
         depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz", # contains depths for all BAM files for all WGS runs
-        bam_file_dedup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.dedup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
+        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.markDup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
     output:
         pass_BAMs_file = f"{sample_out_dir}/bam/pass_BAMs.txt",
     params:
@@ -279,7 +302,7 @@ rule get_BAMs_passing_QC_thresholds:
     shell:
         """
         # run the script to determine which runs pass the BAM depth criteria
-        python3 -u {params.BAM_depth_QC_script} -i {input.depth_file_gzip} -b {input.bam_file_dedup} --median-depth {params.median_depth} --min-cov {params.min_cov} --genome-cov-prop {params.genome_cov_prop}
+        python3 -u {params.BAM_depth_QC_script} -i {input.depth_file_gzip} -b {input.bam_file_markdup} --median-depth {params.median_depth} --min-cov {params.min_cov} --genome-cov-prop {params.genome_cov_prop}
         """
         
         
@@ -288,10 +311,10 @@ rule merge_BAMs:
     input:
         pass_BAMs_file = f"{sample_out_dir}/bam/pass_BAMs.txt",
     output:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
-        merged_bam_index_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam.bai",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
+        merged_bam_index_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.bai",
     conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
+        f"{conda_directory}/envs/read_processing_aln.yaml"
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
         sample_out_dir = sample_out_dir,
@@ -332,7 +355,7 @@ rule merge_BAMs:
         
 rule freebayes_variant_calling:
     input:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
     output:
         vcf_file_init = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf"),
         vcf_file_norm = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.norm.vcf"),
@@ -443,7 +466,7 @@ rule process_WHO_catalog_variants:
         
 rule pilon_variant_calling:
     input:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
     output:
         vcf_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.vcf"),
         vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",

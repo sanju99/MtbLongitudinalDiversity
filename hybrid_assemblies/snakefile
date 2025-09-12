@@ -1,0 +1,24 @@
+import numpy as np
+import pandas as pd
+
+configfile: "config.yaml"
+
+# Define the list of samples, either directly or through config
+output_dir = config["output_dir"]
+
+# dataframe of isolates to run. First column is the sample ID, second column is a comma-separated string of the sequencing run IDs
+df_samples_runs = pd.read_csv(config['isolates_to_run'], sep='\t', header=None)
+
+# first column = BioSample. second column = LR run ID, third column = SR run ID
+sample_LRrunID_dict = dict(zip(df_samples_runs[0], df_samples_runs[1]))
+sample_SRrunID_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
+
+include: "rules/rules.smk"
+
+# Define rules in the Snakefile
+
+rule all:
+    input:
+        [f"{output_dir}/{sample_ID}/autocycler/assemblies" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/FASTQ/LR.fastq.gz" for sample_ID in sample_LRrunID_dict.keys()],
+        # [f"{output_dir}/{sample_ID}/FASTQ/SR.R{num}.fastq.gz" for sample_ID in sample_SRrunID_dict.keys() for num in [1, 2]],

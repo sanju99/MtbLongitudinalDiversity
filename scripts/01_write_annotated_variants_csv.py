@@ -4,9 +4,7 @@ import glob, os, vcf, warnings, shutil, subprocess, re, argparse
 
 parser = argparse.ArgumentParser()
 
-# use edirect_env environment
 parser.add_argument("-d", dest='sample_dir', type=str, required=True, help='Directory with output files')
-# parser.add_argument("-o", "--output", dest='output_file', type=str, required=True, help='Output CSV file for the returned metadata')
 
 cmd_line_args = parser.parse_args()
 

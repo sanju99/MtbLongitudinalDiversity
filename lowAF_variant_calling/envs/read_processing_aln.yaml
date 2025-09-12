@@ -7,6 +7,6 @@ dependencies:
   - fastp
   - kraken2
   - fastlin
-  - bwa-mem2=2.2.1
+  - bwa
   - picard
   - samtools

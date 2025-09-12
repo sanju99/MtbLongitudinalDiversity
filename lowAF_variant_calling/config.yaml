@@ -1,13 +1,13 @@
 output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF"
 fastq_dir: "/n/data1/hms/dbmi/farhat/fastq_db/TRUST_Illumina/TRUST.SRWGS.FQs.AllSets.RenamedAndLanesMerged"
-isolates_to_run: "/home/sak0914/longitudinal_changes/lowAF_pipeline/TRUST_samples.tsv"
+isolates_to_run: "/home/sak0914/MtbLongitudinalDiversity/lowAF_pipeline/TRUST_samples.tsv"
 kraken_db: "/n/data1/hms/dbmi/farhat/mm774/References/Kraken2_DB_Dir/Kraken2_DB"
 scripts_dir: "./scripts"
 references_dir: "./references"
 min_read_length: 50
 median_depth: 15
-min_cov: 20
-genome_cov_prop: 0.95
+min_cov: 1
+genome_cov_prop: 0
 annot_VCF_name: "./VCFs_to_annot.txt"
 snpEff_db: "Mycobacterium_tuberculosis_h37rv"
 taxid: 77643
