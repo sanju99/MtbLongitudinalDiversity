@@ -6,24 +6,38 @@ configfile: "config.yaml"
 # Define the list of samples, either directly or through config
 output_dir = config["output_dir"]
 
+df_samples = pd.read_csv(config['isolates_to_run'], sep='\t', header=None)
+
+assembly_sample = config["assembly_sample"]
+assembly_dir = config['assembly_dir']
+
 # dataframe of isolates to run. First column is the sample ID, second column is a comma-separated string of the sequencing run IDs
 # df_samples_runs = pd.read_csv(config['isolates_to_run'], sep='\t', header=None)
 # sample_run_dict = dict(zip(df_samples_runs[0], df_samples_runs[1].str.split(',')))
 
-df_samples_asm = pd.read_csv(config['isolates_to_run'], sep='\t', header=None)
+df_samples_asm = pd.read_csv("~/MtbLongitudinalDiversity/lowAF_variant_calling/data/personal_assemblies_samples.tsv", sep='\t', header=None)
 sample_asm_dict = dict(zip(df_samples_asm[0], df_samples_asm[1]))
+
+for sample in df_samples[0].values:
+    if sample not in sample_asm_dict.keys():
+        sample_asm_dict[sample] = f"{assembly_dir}/{sample}/assembly/{sample}.fasta"
+
+# sample_FQ_dict = dict(zip(df_samples_asm[0], df_samples_asm[2]))
 
 # make a dictionary of binary values indicating whether (1) or not (0) to download publicly available FASTQ files
 # assert df_samples_runs[2].isin([0, 1]).all()
 # download_public_FASTQ_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
 
-include: "rules/personal_asm_rules.smk"
-
-from utils import *
+include: "rules/personal_asm.smk"
 
 # Define rules in the Snakefile
 
 rule all:
     input:
-        [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.vcf" for sample_ID in df_samples_asm[0].values],
-        # [f"{output_dir}/{sample_ID}/freebayes/lowAF_variants.H37Rv.bed" for sample_ID in df_samples_asm[0].values],
+        [f"{output_dir}/{sample_ID}/lowAF_comparison/confusion_matrix.csv" for sample_ID in df_samples[0].values],
+        # [f"{output_dir}/{sample_ID}/freebayes/lowAF_variants.H37Rv.excludeLowConf.bed" for sample_ID in df_samples[0].values],
+        # f"{assembly_dir}/{assembly_sample}/assembly/exclude_regions_50bp.EBRlessThan95Percent.bed",
+        # [f"{output_dir}/{sample}/personal_ref_genomes/{assembly_sample}/freebayes/lowAF_variants.excludeLowConf.{sample}.bed" for sample in df_samples[0].values],
+        # [f"{output_dir}/{sample}/personal_ref_genomes/{assembly_sample}/freebayes/lowAF_variants.{sample}.bed" for sample in df_samples[0].values],
+        # [f"{output_dir}/{sample}/personal_ref_genomes/{assembly_sample}/freebayes/lowAF_variants.H37Rv.bed" for sample in df_samples[0].values],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_variants.tsv" for sample_ID in df_samples_asm[0].values],

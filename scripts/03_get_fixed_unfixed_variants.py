@@ -36,6 +36,7 @@ print(f"{len(finished_samples)} samples have finished annotation files for low-q
 df_longitudinal_pids = pd.read_csv(input_file)
 
 
+
 def save_both_fixed_unfixed_variants(finished_samples, save_dir, regions_of_interest=False):
 
     os.makedirs(save_dir, exist_ok=True)

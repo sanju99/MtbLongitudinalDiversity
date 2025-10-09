@@ -90,18 +90,12 @@ def check_is_snp(record):
     Exclude indels with this filter
     '''
     
-    # check first that it is not an IMPRECISE variant or a structural variant. IMPRECISE is a place where the variant caller has difficulty resolving the variants
-    # they also don't have IC or DC fields, so you will get an error in the next block
-    if 'IMPRECISE' in record.INFO.keys() or 'SVTYPE' in record.INFO.keys():
-        return False
-    else:     
+    alt_allele = "".join(np.array(record.ALT).astype(str))
 
-        alt_allele = "".join(np.array(record.ALT).astype(str))
-        
-        # check string lengths to ensure no indels and also the IC and DC flags in the INFO field
-        # skip cases where REF = ALT (not a SNP)
-        if len(record.REF) == len(alt_allele) and record.REF != alt_allele:
-            return True
+    # check string lengths to ensure no indels and also the IC and DC flags in the INFO field
+    # skip cases where REF = ALT (not a SNP)
+    if len(record.REF) == len(alt_allele) and record.REF != alt_allele:
+        return True
     
     return False
 
@@ -154,36 +148,13 @@ def allele_category(record, qualThresh=10, presentThresh=0.75):
     else:
         qual = record.QUAL
         
-    # # this occurs if there is a deletion upstream of this variant. This variant doesn't actually exist because there is no nucleotide there
-    # if "Del" in record.FILTER and len(ref_allele) == len(alt_allele):
-    #     return "del"
-
-    # don't include IMPRECISE variants because they are difficult to reliably insert and often aren't reliable calls anyway
-    # unreliability can be due to ambiguous alignments, complex genomic regions, low sequencing coverage, assembly gaps, or segmental duplications
-    # basically these are breakpoints that the variant caller is not confident in. If we put Ns, often we get huge runs of Ns, which causes too much noise for the model.
-    # pilon was not able to resolve the variants (usually due to large deletions), so leave as reference because we don't know what the variant is with high confidence
-    if "IMPRECISE" in record.INFO.keys():
-        return "ref"
-    
-    # # the filter field is an empty list of it is PASS, else the list is non-empty
-    # # only consider the non-Amb cases here. Amb cases will be later, check the AF too for that
-    # if len(record.FILTER) > 0 and "Amb" not in record.FILTER:
-    #     return "missing"
-    
     # because IMPRECISE is taken care of above, this should only return missing for cases where REF = N or ALT = N
     if "N" in ref_allele or "N" in alt_allele:
         return "missing"
-
-    # if 'LowCov' in record.FILTER:
-    #     return "missing"
     
     # check if there are any non alphanumeric characters. This would indicate a heterogeneous alternative allele
     if not alt_allele.isalnum():
         return "missing"
-
-    # # low SNP quality
-    # if qual < qualThresh:
-    #     return "missing"
 
     # base quality, mapping quality, and read depth (measures of certainty about a variant)
     if 'DP' in record.INFO.keys():
@@ -191,11 +162,16 @@ def allele_category(record, qualThresh=10, presentThresh=0.75):
             return 'missing'
 
     if 'MQM' in record.INFO.keys():
-        if len(record.INFO['MQM']) > 1:
-            return "missing"
+        if type(record.INFO['MQM']) == list:
+            if len(record.INFO['MQM']) == 1:
+                mapping_quality = record.INFO['MQM'][0]
+            else:
+                return "missing"
         else:
-            if record.INFO['MQM'][0] < 30:
-                return 'missing'
+            mapping_quality = record.INFO['MQM']
+           
+        if mapping_quality < 30:
+            return 'missing'
 
     # # base quality is 0 for indels, so include this step for only SNPs and MNPs (lengths are the same for REF and ALT)
     # if len(ref_allele) == len(alt_allele) and 'BQ' in record.INFO.keys():

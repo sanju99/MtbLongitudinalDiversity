@@ -8,7 +8,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=skulkarni@g.harvard.edu
 
-source activate variant_calling_smk
+source activate snakemake
 
 snakemake --snakefile snakefile --use-conda --conda-frontend conda --rerun-incomplete --keep-going --configfile config.yaml --cores 8 --conda-prefix /home/sak0914/Mtb_Megapipe/.snakemake/conda --resources mem_mb=20000 --unlock
 

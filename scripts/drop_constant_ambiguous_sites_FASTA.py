@@ -17,75 +17,33 @@ cmd_line_args = parser.parse_args()
 INPUT_FASTA = cmd_line_args.INPUT_FASTA
 OUT_FASTA = cmd_line_args.OUT_FASTA
 
-OUT_CSV = OUT_FASTA.replace('.fasta', '.csv')
+# Read all sequences into memory once (dict: sample_id -> string) and exclude H37Rv if it is there
+seqs = {rec.id: str(rec.seq) for rec in SeqIO.parse(INPUT_FASTA, "fasta") if 'h37rv' not in rec.id.lower()}
 
-# exclude H37Rv if it is there
-fasta_file = pd.DataFrame([(seq.id, seq.seq) for seq in SeqIO.parse(INPUT_FASTA, "fasta") if 'h37rv' not in seq.id.lower()])
+samples = list(seqs.keys())
+length = len(next(iter(seqs.values())))  # sequence length
+
+# Create per-sample lists for filtered sequences
+filtered = {s: [] for s in samples}
+
+# Iterate site-by-site
+for pos, bases in enumerate(zip(*seqs.values()), start=1):
+    unique = set(bases)
     
-genome_matrix = []
+    # Drop constant sites and Drop sites with '-' or 'N'
+    if len(unique) != 1 and '-' not in unique and 'N' not in unique:
 
-for i, row in fasta_file.iterrows():
+        # Keep site: append base to each sample's filtered sequence
+        for s, b in zip(samples, bases):
+            filtered[s].append(b)
 
-    genome_matrix.append(np.array(row[1]))
+print(f"Kept {len(filtered[samples[0]])}/{length} sites")
 
-    if i % 100 == 0:
-        print(f"Adding {i}: genome {row[0]} to matrix")
-
-genome_matrix = np.array(genome_matrix)
-
-# convert to dataframe
-genome_matrix = pd.DataFrame(genome_matrix)
-genome_matrix.index = fasta_file[0].values
-
-# 1-index the columns so that they are the actual position in the H37Rv coordinate system
-genome_matrix.columns = genome_matrix.columns + 1
-
-num_unique_nucs_per_site = pd.DataFrame(genome_matrix.nunique(axis=0)).reset_index()
-num_unique_nucs_per_site.columns = ['site', 'num_unique']
-keep_sites = num_unique_nucs_per_site.query("num_unique > 1").site.values
-
-print(genome_matrix.shape)
-print(f"Keeping {len(keep_sites)}/{genome_matrix.shape[1]} sites that are not constant")
-
-print(keep_sites)
-
-# keep the header to know which sites were kept
-genome_matrix[keep_sites].to_csv(OUT_CSV)
-
-
-##########################################################################################################################################
-
-
-genome_matrix = pd.read_csv(OUT_CSV, index_col=[0])
-
-# remove deletions because we only want to consider SNPs
-drop_cols_deletions = genome_matrix.columns[np.unique(np.where(genome_matrix == '-')[1])]
-
-# remove ambiguous calls because they are so rare that they are causing some ambiguously constant sites. Not correct to encode them as something else, so just drop those sites?
-drop_cols_missing = genome_matrix.columns[np.unique(np.where(genome_matrix == 'N')[1])]
-
-combined_drop_cols = list(set(drop_cols_deletions).union(drop_cols_missing))
-print(f"Dropping {len(combined_drop_cols)} sites with missing calls or deletions in any sample")
-
-genome_matrix_keep = genome_matrix.drop(combined_drop_cols, axis=1)
-del genome_matrix
-
-keep_cols = genome_matrix_keep.columns
-
-# overwrite the old one. That's just a placeholder because the top step takes longest, so to save space if you need to rerun
-genome_matrix_keep.to_csv(OUT_CSV)
-
-print(f"Writing {genome_matrix_keep.shape[0]} samples with {genome_matrix_keep.shape[1]} SNPs")
-
-with open(OUT_FASTA, "w+") as file:
-
-    for sample in genome_matrix_keep.index.values:
-    
-        # combine all the nucleotides into a single string
-        snp_concatenate = ''.join(genome_matrix_keep.loc[sample, :])
-
-        file.write(f">{sample}\n")
-        file.write(f"{snp_concatenate}\n")
+# Write output FASTA
+with open(OUT_FASTA, "w") as out:
+    for s in samples:
+        seq_str = ''.join(filtered[s])
+        out.write(f">{s}\n{seq_str}\n")
 
 # returns a tuple: current, peak memory in bytes 
 script_memory = tracemalloc.get_traced_memory()[1] / 1e9

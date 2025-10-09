@@ -1,78 +1,42 @@
+#!/bin/bash 
+#SBATCH -c 1
+#SBATCH -t 0-11:59
+#SBATCH -p short
+#SBATCH --mem=10G
+#SBATCH -o /home/sak0914/Errors/zerrors_%j.out 
+#SBATCH -e /home/sak0914/Errors/zerrors_%j.err
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=skulkarni@g.harvard.edu
 
+source activate bayesian_modeling
 
+# personal_ref_dir="/n/data1/hms/dbmi/farhat/Sanjana/TRUST_aln_personal_assembly"
 
-source activate liftoff
+# for sample_dir in "$personal_ref_dir"/*; do
+#     sample=$(basename "$sample_dir")
+        
+#     python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/02_combine_lowAF_variants.py \
+#             -s $sample \
+#             -bed1 "$personal_ref_dir/$sample/freebayes/lowAF_variants.bed" \
+#             -bed2 "$personal_ref_dir/$sample/freebayes/lowAF_variants.H37Rv.excludeLowConf.bed" \
+#             -tsv /n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF/$sample/freebayes/$sample.excludeLowConf.tsv
+            
+#     echo "Finished $sample"
+                
+# done
 
-while IFS=$'\t' read -r sample assembly; do
+H37Rv_ref_dir="/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF"
+
+for sample_dir in "$H37Rv_ref_dir"/*; do
+
+    sample=$(basename "$sample_dir")
     
-    dirpath=$(dirname "$assembly")
-        
-    if [ ! -f $dirpath/H37Rv.liftoff.gff_polished ]; then
+    python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/03_get_alignment_stats.py \
+            -s $sample \
+            -b $H37Rv_ref_dir/$sample/bam/$sample.dedup.bam \
+            -v $H37Rv_ref_dir/$sample/freebayes/$sample.excludeLowConf.tsv
     
-        liftoff -g ~/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv.NCBI.gff3 \
-                    -o $dirpath/H37Rv.liftoff.gff \
-                    -copies -polish \
-                    -dir $dirpath \
-                    $assembly ~/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv_NC_000962.3.fna
-                    
-    fi
-
-done < "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/personal_assemblies_samples.tsv"
-
-        
-source deactivate
-
-while IFS=$'\t' read -r sample assembly; do
+    echo "Finished $sample"
+    # exit
     
-    dirpath=$(dirname "$assembly")
-    freebayes_VCF_fName="$dirpath/$sample/freebayes/$sample.vcf"
-        
-    if [ -f $freebayes_VCF_fName ]; then
-    
-        liftoff -g ~/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv.NCBI.gff3 \
-                    -o $dirpath/H37Rv.liftoff.gff \
-                    -copies -polish \
-                    -dir $dirpath \
-                    $assembly ~/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv_NC_000962.3.fna
-                    
-    fi
-
-done < "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/personal_assemblies_samples.tsv"
-
-        
-        
-        
-rule filter_high_quality_lowAF_variants:
-    input:
-        vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
-        polished_liftoff_gff_file = f"{sample_out_dir}/assembly/H37Rv.liftoff.gff_polished",
-    output:
-        lowAF_variants_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.bed",
-    run:
-
-
-        
-    
-
-rule liftover_variants_from_personal_genome_coords_to_H37Rv_coords:
-    input:
-        personal_ref_genome = lambda w: sample_asm_dict[w.sample_ID],
-        lowAF_variants_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.bed",
-    output:
-        paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
-        lowAF_variants_H37Rv_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.bed",
-    params:
-        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
-    conda:
-        f"{conda_directory}/envs/liftover.yaml"
-        # "/home/sak0914/anaconda3/envs/liftoff",
-        # f"{conda_directory}/.snakemake/conda/liftover"
-    threads:
-        8
-    shell:
-        """
-        # generate paf file
-        minimap2 -x asm5 -c --cs -t {threads} {params.H37Rv_genome} {input.personal_ref_genome} > {output.paf_file}
-        
-        paftools.js liftover {output.paf_file} {input.lowAF_variants_bed_file} > {output.lowAF_variants_H37Rv_bed_file}
-        """
+done

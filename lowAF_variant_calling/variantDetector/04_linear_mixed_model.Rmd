@@ -1,0 +1,164 @@
+---
+title: "Linear Mixed Model Low AF Variants"
+output: html_document
+date: "2025-10-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+install.packages('caret')
+
+library("lme4")
+library('caret')
+library('pROC')
+```
+
+```{r}
+df_train <- read.csv("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/model_1/training_data.csv")
+
+predictors <- c("COV_RATIO", "CLIPPED_BASES_RATIO", "DISCORDANT_READS_RATIO", "Mean_BQ_ALT_allele")
+
+# Extract X and y
+X_train <- df_train[, predictors]
+y_train <- df_train[['Real']]
+train_samples <- df_train[['SampleID']]
+
+df_val <- read.csv("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/model_1/validation_data.csv")
+
+# Extract X and y
+X_val <- df_val[, predictors]
+val_samples <- df_val[['SampleID']]
+
+dim(X_train)
+dim(X_val)
+```
+
+```{r}
+# --- Standardize predictors ---
+X_train_mean <- sapply(X_train, mean, na.rm = TRUE)
+X_train_sd <- sapply(X_train, sd, na.rm = TRUE)
+
+# Scale training predictors
+X_train_scaled <- as.data.frame(scale(X_train, center = X_train_mean, scale = X_train_sd))
+X_val_scaled <- as.data.frame(scale(X_val, center = X_train_mean, scale = X_train_sd))
+
+# combine into dataframes
+df_train_scaled = cbind(X_train_scaled, Real = y_train, SampleID = train_samples)
+df_val_scaled = cbind(X_val_scaled, SampleID = val_samples)
+
+# then cbind the original df_val with identifier columns
+df_val_scaled = cbind(df_val_scaled, df_val[, c("POS", "REF", "ALT", "AF")])
+```
+
+
+```{r, eval=FALSE}
+# --- Train-test split (stratified) ---
+set.seed(42)
+train_idx <- createDataPartition(y, p = 0.8, list = FALSE)
+# Save indices for reproducibility
+save(train_idx, file = "train_idx.RData")
+
+# Load if needed later
+# load("train_idx.RData")
+
+X_train <- X[train_idx, ]
+y_train <- y[train_idx]
+X_val <- X[-train_idx, ]
+y_val <- y[-train_idx]
+
+train_samples <- samples[train_idx]
+val_samples <- samples[-train_idx]
+
+# --- Standardize predictors ---
+X_train_mean <- sapply(X_train, mean, na.rm = TRUE)
+X_train_sd   <- sapply(X_train, sd, na.rm = TRUE)
+
+# Save mean and SD for later scaling of validation or test data
+save(X_train_mean, file = "X_train_mean.RData")
+save(X_train_sd, file = "X_train_sd.RData")
+
+# Scale training predictors
+X_train_scaled <- as.data.frame(scale(X_train, center = X_train_mean, scale = X_train_sd))
+
+# You can later apply the same scaling to validation:
+X_val_scaled <- as.data.frame(scale(X_val, center = X_train_mean, scale = X_train_sd))
+
+# combine into dataframes
+df_train_scaled = cbind(X_train_scaled, Real = y_train, SampleID = train_samples)
+df_val_scaled = cbind(X_val_scaled, Real = y_val, SampleID = val_samples)
+```
+
+```{r}
+compute_metrics <- function(df, pred_col = "predicted", true_col = "Real", threshold = 0.5) {
+  # Binarize predictions based on threshold
+  df$pred_class <- ifelse(df[pred_col] >= threshold, 1, 0)
+  
+  # True positives, false positives, true negatives, false negatives
+  TP <- sum(df$pred_class == 1 & df[true_col] == 1)
+  FP <- sum(df$pred_class == 1 & df[true_col] == 0)
+  TN <- sum(df$pred_class == 0 & df[true_col] == 0)
+  FN <- sum(df$pred_class == 0 & df[true_col] == 1)
+  
+  # Metrics
+  precision <- if ((TP + FP) == 0) NA else TP / (TP + FP)
+  recall <- if ((TP + FN) == 0) NA else TP / (TP + FN)  # Sensitivity
+  specificity <- if ((TN + FP) == 0) NA else TN / (TN + FP)
+  
+  # Return as a list
+  return(list(
+    precision = precision,
+    recall = recall,
+    specificity = specificity,
+    sum_sens_spec = recall + specificity
+  ))
+}
+
+# Function to find best threshold
+compute_best_binarization_threshold <- function(df, pred_col = "predicted", true_col = "Real", thresholds = seq(0, 1, 0.01)) {
+  metrics <- sapply(thresholds, function(t) compute_metrics(df, pred_col, true_col, t))
+  metrics_df <- as.data.frame(t(metrics))
+  metrics_df$threshold <- thresholds
+  
+  best_row <- metrics_df[which.max(metrics_df$sum_sens_spec), ]
+  best_thresh <- best_row$threshold
+  
+  return(best_thresh)
+  # return(list(best_threshold = best_thresh, metrics = metrics_df))
+}
+```
+
+```{r}
+# Fit a mixed-effects logistic regression model
+model <- glmer(
+  Real ~ COV_RATIO + CLIPPED_BASES_RATIO + DISCORDANT_READS_RATIO + Mean_BQ_ALT_allele + (1 | SampleID),
+  data = df_train_scaled,
+  family = binomial(link = "logit")
+)
+
+# save the fitted model
+save(model, file = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/model_1/linear_mixed_model.RData")
+
+# get predictions on the training set
+df_train_scaled$predicted <- predict(model, type = "response")
+
+# plot ROC AUC
+train_roc_obj <- roc(df_train_scaled$Real, df_train_scaled$predicted)
+plot(train_roc_obj)
+auc(train_roc_obj)
+
+# maximize the sum of sensitivity and specificity
+best_threshold <- compute_best_binarization_threshold(df_train_scaled)
+print(paste("Best threshold", best_threshold))
+```
+
+```{r}
+# get predictions on the training set. re.form = NA ignores random effects. Needed if you have some samples in the validation data not in the training data
+df_val_scaled$predicted <- predict(model, newdata = df_val_scaled, re.form = NA, type = "response")
+
+# add the binary predictions, binarized at the best_threshold
+df_val_scaled$pred_class <- ifelse(df_val_scaled$predicted >= best_threshold, 1, 0)
+
+# save
+write.csv(df_val_scaled, "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/model_1/linear_mixed_model_predictions.csv", row.names = FALSE)
+```

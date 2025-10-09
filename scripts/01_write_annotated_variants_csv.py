@@ -11,7 +11,7 @@ cmd_line_args = parser.parse_args()
 sample_dir = cmd_line_args.sample_dir
 
 
-def get_all_variant_info(fName):
+def get_all_variant_info(fName, AF_min=0.05, min_reads_each_direction=2):
     
     # SRF = # of reference observations on the forward strand
     # SAF = # of alternate observations on the forward strand
@@ -29,7 +29,7 @@ def get_all_variant_info(fName):
         vals_dict = {}
 
         # there should only be 1 value for all of these because we split multiallelic sites to different lines. So even if it's a list, the list should have length 1
-        for field in ['DPB', 'AF', 'AO', 'MQM', 'MQMR', 'SAF', 'SAR', 'SAP', 'RPP', 'RPPR', 'RPL', 'RPR']:
+        for field in ['DPB', 'AF', 'AO', 'RO', 'DP', 'DPB', 'MQM', 'MQMR', 'SAF', 'SAR', 'SRF', 'SRR', 'SAP', 'SRP', 'RPP', 'RPPR', 'RPL', 'RPR']:
 
             if type(record.INFO[field]) == int or type(record.INFO[field]) == float:
                 vals_dict[field] = record.INFO[field]
@@ -47,25 +47,25 @@ def get_all_variant_info(fName):
 
         # AF_lst = np.array(AF_lst).astype(str)
         # AF_lst_AC = np.array(AF_lst_AC).astype(str)
-        
+                
         df_variants.loc[i, :] = [record.POS, 
                                  record.REF, 
                                  ','.join(np.array(record.ALT).astype(str)), 
                                  record.QUAL, 
                                  record.FILTER, 
-                                 record.INFO['DP'],
-                                 record.INFO['DPB'],
-                                 record.INFO['RO'],
+                                 vals_dict['DP'],
+                                 vals_dict['DPB'],
+                                 vals_dict['RO'],
                                  vals_dict['AO'],
-                                 vals_dict['AO'] / record.INFO['DP'],
+                                 vals_dict['AO'] / vals_dict['DP'],
                                  vals_dict['AF'],
                                  vals_dict['MQM'], 
                                  vals_dict['MQMR'], 
-                                 record.INFO['SRF'], 
-                                 record.INFO['SRR'], 
+                                 vals_dict['SRF'], 
+                                 vals_dict['SRR'], 
                                  vals_dict['SAF'],
                                  vals_dict['SAR'], 
-                                 record.INFO['SRP'], 
+                                 vals_dict['SRP'], 
                                  vals_dict['SAP'], 
                                  vals_dict['RPP'],
                                  vals_dict['RPPR'],
@@ -93,6 +93,7 @@ def get_all_variant_info(fName):
 
 
 samples = os.listdir(sample_dir)
+# samples = ['MFS-110']
 print(f"{len(samples)} samples to process")
 
 for i, sample in enumerate(samples):
@@ -101,29 +102,31 @@ for i, sample in enumerate(samples):
 
     # these contain the snpEff annotations too
     full_in_file = f"{sample_dir}/{sample}/freebayes/{sample}.excludeLowConf.vcf"
-    full_out_file = f"{sample_dir}/{sample}/freebayes/{sample}.csv"
+    full_out_file = f"{sample_dir}/{sample}/freebayes/{sample}.excludeLowConf.csv"
 
     ROI_in_file = f"{sample_dir}/{sample}/freebayes/{sample}.excludeLowConf.regionsOfInterest.vcf"
     ROI_out_file = f"{sample_dir}/{sample}/freebayes/{sample}.regionsOfInterest.csv"
 
-    if not os.path.isfile(full_out_file) or not os.path.isfile(ROI_out_file):
+    # if not os.path.isfile(full_out_file):
     
-        df_variants_full = get_all_variant_info(full_in_file)
-        df_variants_ROI = get_all_variant_info(ROI_in_file)
+    df_variants_full = get_all_variant_info(full_in_file)
 
-        # delete columns that are NA everywhere
-        for col in df_variants_full.columns:
-            if sum(~pd.isnull(df_variants_full[col])) == 0:
-                del df_variants_full[col]
+    # delete columns that are NA everywhere
+    for col in df_variants_full.columns:
+        if sum(~pd.isnull(df_variants_full[col])) == 0:
+            del df_variants_full[col]
+
+    df_variants_full.to_csv(full_out_file, index=False)
+
+    if not os.path.isfile(ROI_out_file):
+
+        df_variants_ROI = get_all_variant_info(ROI_in_file)
 
         # delete columns that are NA everywhere
         for col in df_variants_ROI.columns:
             if sum(~pd.isnull(df_variants_ROI[col])) == 0:
                 del df_variants_ROI[col]
-
-        df_variants_full.to_csv(full_out_file, index=False)
+                
         df_variants_ROI.to_csv(ROI_out_file, index=False)
-        print(f"Finished {sample}")
-        
-    else:
-        print(f"Already finished {sample}")
+    
+    print(f"Finished {sample}")

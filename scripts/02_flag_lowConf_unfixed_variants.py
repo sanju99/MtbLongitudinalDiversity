@@ -15,7 +15,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--cov-window-size', type=int, dest='COV_WINDOW_SIZE', default=50, help='Window size for computing the rolling average of coverage')
 parser.add_argument('--SNP-window-size', type=int, dest='SNP_WINDOW_SIZE', default=25, help='Window size for computing the rolling average of low-AF SNPs')
 parser.add_argument('--AF-thresh', type=float, dest='AF_THRESH', default=0.05, help='Alternative allele frequency threshold (exclusive) to consider variants present')
-parser.add_argument('--SNP-density-thresh', type=float, dest='SNP_DENSITY_PROP_THRESH', default=0.05, help='Threshold for considering a region as having a high density of SNPs. 0.05 means 5% of sites in the window are a SNP relative to reference')
+parser.add_argument('--SNP-density-thresh', type=float, dest='SNP_DENSITY_PROP_THRESH', default=0.1, help='Threshold for considering a region as having a high density of SNPs. 0.05 means 5% of sites in the window are a SNP relative to reference')
+parser.add_argument('--soft-clip-thresh', type=int, dest='SOFT_CLIP_BASES_THRESH', default=10, help='Threshold for considering a site as having a lot of soft-clipped bases.')
 parser.add_argument("-d", dest='sample_dir', type=str, required=True, help='Directory with output files')
 
 cmd_line_args = parser.parse_args()
@@ -25,7 +26,9 @@ COV_WINDOW_SIZE = cmd_line_args.COV_WINDOW_SIZE
 SNP_WINDOW_SIZE = cmd_line_args.SNP_WINDOW_SIZE
 AF_THRESH = cmd_line_args.AF_THRESH
 SNP_DENSITY_PROP_THRESH = cmd_line_args.SNP_DENSITY_PROP_THRESH
+SOFT_CLIP_BASES_THRESH = cmd_line_args.SOFT_CLIP_BASES_THRESH
 sample_dir = cmd_line_args.sample_dir
+
 
 def compute_coverage_derivative(depth_file, window_size=50):
     '''
@@ -55,7 +58,7 @@ def compute_coverage_derivative(depth_file, window_size=50):
 
 
 
-def get_candidate_coverage_plateaus(df_depth, deriv_threshold_percent=0.1, plateau_length=100):
+def get_candidate_coverage_plateaus(df_depth, deriv_threshold_percent=0.1, plateau_length=100, extra_bp_exclude=10):
 
     deriv_col = 'NORM_DERIV_COV_COV_ROLLING_AVG'
     
@@ -137,9 +140,7 @@ def get_candidate_coverage_plateaus(df_depth, deriv_threshold_percent=0.1, plate
     # also require that maximum rolling average derivative within the plateau is less than the threshold used for identifying the edges of plateaus
     df_final_regions = df_candidate_regions.query("(AVG_COV_INTERVENING > COV_ROLLING_AVG_BEFORE) & (AVG_COV_INTERVENING > COV_ROLLING_AVG_AFTER) & (MAX_DERIV_INTERVENING > -@deriv_threshold) & (MAX_DERIV_INTERVENING < @deriv_threshold)")
     print(f"Keeping {len(df_final_regions)} / {len(df_candidate_regions)} candidate plateaus")
-
-    extra_bp_exclude = 50
-    
+        
     coverage_plateau_sites = []
     for i, row in df_final_regions.iterrows():
         # also include N base pairs on each end. Add 1 to the end because row[1] is inclusive currently, but np.arange will treat it as exclusive
@@ -239,7 +240,7 @@ def get_allele_type(record, AF_present_thresh=0.05):
 
 
 
-def compute_sites_with_high_SNP_density(sample, AF_present_thresh=0.05, SNP_window_size=25, snp_density_proportion_thresh=0.05):
+def compute_sites_with_high_SNP_density(sample, AF_present_thresh=0.05, SNP_window_size=25, snp_density_proportion_thresh=0.1, extra_bp_exclude=50):
 
     df_SNPs = pd.DataFrame(columns = ['POS', 'SNP'])
     i = 0
@@ -270,12 +271,10 @@ def compute_sites_with_high_SNP_density(sample, AF_present_thresh=0.05, SNP_wind
 
     df_SNPs['SNP_density_rolling_avg'] = df_SNPs['SNP'].rolling(window=SNP_window_size, min_periods=1, closed='right').mean()
 
-    # get sites where the rolling average is at least 10%
+    # get sites where the rolling average is at least snp_density_proportion_thresh
     high_density_SNP_regions = df_SNPs.query("SNP_density_rolling_avg > @snp_density_proportion_thresh")
     
     high_density_SNP_sites = list(high_density_SNP_regions['POS'].values)
-
-    extra_bp_exclude = 50
     
     # add the sites that are also part of the high rolling average, so subtract window_size from each position
     for pos in high_density_SNP_regions.POS.values:
@@ -297,30 +296,31 @@ def compute_sites_with_high_SNP_density(sample, AF_present_thresh=0.05, SNP_wind
 samples = os.listdir(sample_dir)
 print(f"{len(samples)} samples to process")
 
+# for i, SAMPLE in enumerate(samples):
 for i, SAMPLE in enumerate(samples):
     
-    if os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy") and os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy"):
-        print(f"Already finished {SAMPLE}")
-    else:
-        if not os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy"):
-            
-            df_depth = compute_coverage_derivative(f"{sample_dir}/{SAMPLE}/bam/{SAMPLE}.depth.tsv.gz", 
-                                                   COV_WINDOW_SIZE
-                                                  )
-            
-            _, coverage_plateau_sites = get_candidate_coverage_plateaus(df_depth)
-            
-            np.save(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy", coverage_plateau_sites)
-            
+    # if os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy") and os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy"):
+    #     print(f"Already finished {SAMPLE}")
+    # else:
         
-        if not os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy"):
-                
-            high_density_SNP_sites = compute_sites_with_high_SNP_density(SAMPLE, 
-                                                                         AF_present_thresh=AF_THRESH, 
-                                                                         SNP_window_size=SNP_WINDOW_SIZE, 
-                                                                         snp_density_proportion_thresh=SNP_DENSITY_PROP_THRESH
-                                                                        )
-            
-            np.save(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy", high_density_SNP_sites)
-    
+    if not os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy"):
+
+        df_depth = compute_coverage_derivative(f"{sample_dir}/{SAMPLE}/bam/{SAMPLE}.depth.tsv.gz", 
+                                               COV_WINDOW_SIZE
+                                              )
+
+        _, coverage_plateau_sites = get_candidate_coverage_plateaus(df_depth)
+
+        np.save(f"{sample_dir}/{SAMPLE}/freebayes/coverage_plateau_sites.npy", coverage_plateau_sites)
+
+        # if not os.path.isfile(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy"):
+
+    #     high_density_SNP_sites = compute_sites_with_high_SNP_density(SAMPLE, 
+    #                                                                  AF_present_thresh=AF_THRESH, 
+    #                                                                  SNP_window_size=SNP_WINDOW_SIZE, 
+    #                                                                  snp_density_proportion_thresh=SNP_DENSITY_PROP_THRESH
+    #                                                                 )
+
+    #     np.save(f"{sample_dir}/{SAMPLE}/freebayes/high_density_SNP_sites.npy", high_density_SNP_sites)
+
         print(f"Finished {SAMPLE}")

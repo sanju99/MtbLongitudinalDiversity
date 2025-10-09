@@ -9,36 +9,40 @@ primary_directory = os.getcwd()
 
 
 rule run_split_strains:
+    input:
+        bam_file = f"{sample_out_dir}/bam/{{sample}}.dedup.bam",
     output:
-        result_file = f"{sample_out_dir}/{{sample}}.result.txt"
+        result_file = f"{sample_out_dir}/bam/SplitStrains/{{sample}}.result.txt"
     params:
-        sample_out_dir = sample_out_dir,
-        splitStrains_python_script = os.path.join(os.path.dirname(primary_directory), "SplitStrains", "splitStrains.py"),
+        sample_out_dir = os.path.join(sample_out_dir, "bam", "SplitStrains"),
+        splitStrains_directory = os.path.join(primary_directory, "SplitStrains"),
     conda:
         "/home/sak0914/anaconda3/envs/SplitStrains"
     shell:
         """
-        python3 -u {params.splitStrains_python_script} \
-            "{params.sample_out_dir}/full.dedup.bam" \
-            -o {params.sample_out_dir} \
-            -s 1 -e 4411532 \
-            --classify > {output.result_file}
+        python3 -u {params.splitStrains_directory}/splitStrains.py \
+                   {input.bam_file} \
+                   -o {params.sample_out_dir} \
+                   -s 1 -e 4411532 \
+                   -r {params.splitStrains_directory}/refs/tuberculosis.fna \
+                   -b {params.splitStrains_directory}/refs/tuberculosis.filtered-intervals.gff \
+                   --classify > {output.result_file}
         """
 
 
 rule separate_BAM_files:
     input:
-        split_strain_reads_output = f"{sample_out_dir}/{{percent}}_strain.reads",
+        split_strain_reads_output = f"{sample_out_dir}/bam/SplitStrains/{{percent}}_strain.reads",
     output:
-        bam_file = f"{sample_out_dir}/{{percent}}.removed.bam",
+        bam_file = f"{sample_out_dir}/bam/SplitStrains/{{percent}}.removed.bam",
     params:
         sample_out_dir = sample_out_dir,
-        rmreads_python_script = os.path.join(os.path.dirname(primary_directory), "SplitStrains", "rmreads.py"),
+        splitStrains_directory = os.path.join(primary_directory, "SplitStrains"),
     conda:
         "/home/sak0914/anaconda3/envs/SplitStrains"
     shell:
         """
-        python3 -u {params.rmreads_python_script} {input.split_strain_reads_output} "{params.sample_out_dir}/full.dedup.bam" {output.bam_file}
+        python3 -u {params.splitStrains_directory}/rmreads.py {input.split_strain_reads_output} "{params.sample_out_dir}/full.dedup.bam" {output.bam_file}
         """
 
 
