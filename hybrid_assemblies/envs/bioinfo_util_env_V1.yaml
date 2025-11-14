@@ -1,0 +1,8 @@
+name: bioinfo_util_env_V1
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bioawk
+  - samtools

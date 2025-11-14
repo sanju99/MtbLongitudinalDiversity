@@ -171,8 +171,8 @@ rule extract_kraken_reads:
 
 rule align_reads_mark_duplicates:
     input:
-        fastq1_trimmed_classified = f"{sample_out_dir}/kraken/{{sample_ID}}.R1.kraken.filtered.fastq.gz",
-        fastq2_trimmed_classified = f"{sample_out_dir}/kraken/{{sample_ID}}.R2.kraken.filtered.fastq.gz",  
+        fastq1_trimmed_classified = f"{sample_H37Rv_ref_dir}/{{sample_ID}}/kraken/{{sample_ID}}.R1.kraken.filtered.fastq.gz",
+        fastq2_trimmed_classified = f"{sample_H37Rv_ref_dir}/{{sample_ID}}/kraken/{{sample_ID}}.R2.kraken.filtered.fastq.gz",  
     output:
         sam_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.sam"),
         bam_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.bam"),
@@ -225,8 +225,7 @@ rule get_BAM_file_depths:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
         sample_out_dir = sample_out_dir,
     output:
-        depth_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv"),
-        depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz",
+        depth_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz"),
     conda:
         f"{conda_directory}/envs/read_processing_aln.yaml"
     shell:
@@ -234,20 +233,7 @@ rule get_BAM_file_depths:
         # get all runs associated with this sample_ID and compute depth
         # -a computes depth at all positions, not just those with non-zero depth
         # -Q is for minimum mapping quality: use 1, so that multiply mapped reads aren't counted. These have mapping quality of 0
-        samtools depth -a -Q 1 {input.bam_file_markdup} > {output.depth_file}
-
-        # get the length of the reference genome
-        genome_length=$(tail -n +2 {params.ref_genome} | tr -d '\n' | wc -c) # remove first line (FASTA header) and newline characters, then count characters to get ref genome length
-
-        # when there are multiple bam files, each one is its own column in the depth file.
-        num_sites_genome=$(wc -l {output.depth_file} | awk '{{print $1}}')
-    
-        if [ ! "$num_sites_genome" -eq "$genome_length" ]; then
-            echo "Check that all $genome_length sites in the personal reference genome are in {output.depth_file}, which currently has $num_sites_genome sites"
-            exit 1
-        fi
-
-        gzip -c {output.depth_file} > {output.depth_file_gzip}
+        samtools depth -a -Q 1 {input.bam_file_markdup} | gzip -c > {output.depth_file}
         """
 
 
@@ -289,7 +275,7 @@ rule freebayes_variant_calling:
     input:
         merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
     output:
-        vcf_file_init = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf"),
+        vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf",
     params:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
     conda:
@@ -315,33 +301,25 @@ rule freebayes_variant_calling:
         
         
         
+        
 rule freebayes_VCF_normalization_decomposition:
     input:
         vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf",
     output:
-        vcf_file_norm = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.norm.vcf"),
-        vcf_file_atomized = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.atomized.vcf"),
+        vcf_file_split = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.split.vcf"),
         vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
     params:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
     conda:
-        f"{conda_directory}/envs/variant_calling.yaml"
+        f"{conda_directory}/envs/variant_normalization.yaml"
     shell:
         """
-        # left-align and deduplicate variants with the same POS, REF, and ALT in the full VCF file
-        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {input.vcf_file_init} > {output.vcf_file_norm}
-
-        # Split (split = '-' before any, join = '+') multi-allelic sites for easier parsing of the variants. But bcftools norm will not do --rm-dup and --multiallelics in the same step
-        # -a is atomize, to split complex variants into multiple lines of simple variants (i.e. MNPs to multiple SNPs or separating an indel and SNP in close proximity)
-
-        # for this to work, CAN NOT split and atomize in the same step. First, atomize. Second, split multiallelics
-        bcftools norm -a {output.vcf_file_norm} > {output.vcf_file_atomized}
+        # left-align indels and split multiallelics after decomposing variants above
+        bcftools norm --multiallelics -both {input.vcf_file_init} --fasta-ref {params.ref_genome} > {output.vcf_file_split}
         
-        # remove cases where ALT == '*'. This occurs when you have overlapping variants, which are created when we atomize complex variants
-        # to be safe, sort again before saving
-        bcftools norm --multiallelics -both {output.vcf_file_atomized} --fasta-ref {params.ref_genome} | bcftools filter -e "ALT=='*'" | bcftools sort > {output.vcf_file}
+        vcfwave {output.vcf_file_split} | bcftools sort > {output.vcf_file}
         """
-        
+    
         
         
         
@@ -376,12 +354,11 @@ rule filter_high_quality_lowAF_variants:
     params:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
         output_dir = sample_out_dir,
+    # conda:
+    #     f"{conda_directory}/envs/python_bioinformatics_utils.yaml"
     shell:
         """
-        set +u
-        eval "$(conda shell.bash hook)"
-        conda activate bayesian_modeling
-        set -u
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils 
         
         # this scripts writes the lowAF variants BED file. The variants are in the coordinates of the personal ref genome
         # the next step will be to run paftools liftover to transfer the coordinates to H37Rv for easy comparison
@@ -399,7 +376,7 @@ rule transfer_lowAF_variants_to_H37Rv_coordinates:
     input:
         lowAF_variants_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.bed",
     output:
-        personal_H37Rv_paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}/H37Rv.paf",
+        personal_H37Rv_paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
         lowAF_variants_H37Rv_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.bed",
         lowAF_variants_H37Rv_excludeLowConf_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.excludeLowConf.bed",
     conda:
@@ -411,7 +388,7 @@ rule transfer_lowAF_variants_to_H37Rv_coordinates:
     shell:
         """
         # generate paf file. Target = H37Rv first, then query = personal genome second
-        minimap2 -x asm5 -c --cs {params.H37Rv_genome} {params.ref_genome} > {output.personal_H37Rv_paf_file}
+        minimap2 -x asm5 -c --cs {params.H37Rv_genome} {params.ref_genome} --secondary=no > {output.personal_H37Rv_paf_file}
         
         # transfer lowAF variants from personal to H37Rv coordinates
         paftools.js liftover {output.personal_H37Rv_paf_file} {input.lowAF_variants_bed_file} > {output.lowAF_variants_H37Rv_bed_file}
@@ -435,12 +412,11 @@ rule merge_results_H37Rv_personal_genome_calling:
         f"{sample_out_dir}/lowAF_comparison/confusion_matrix.csv",
     params:
         sample_ID = f"{{sample_ID}}",
+    # conda:
+    #    f"{conda_directory}/envs/python_bioinformatics_utils.yaml"
     shell:
-        """
-        set +u
-        eval "$(conda shell.bash hook)"
-        conda activate bayesian_modeling
-        set -u
+        """ 
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
         
         python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/02_combine_lowAF_variants.py \
                 -s {params.sample_ID} \
@@ -462,12 +438,11 @@ rule liftoff_genes_from_H37Rv:
         H37Rv_gff_file = os.path.join(primary_directory, "references", "ref_genome", "H37Rv.NCBI.gff3"),
     threads:
         1
+    # conda:
+    #     f"{conda_directory}/envs/liftover.yaml"
     shell:
-        """
-        set +u
-        eval "$(conda shell.bash hook)"
-        conda activate liftoff
-        set -u
+        """        
+        source activate liftoff
         
         liftoff -g {params.H37Rv_gff_file} \
                 -o {output.liftoff_gff_file} \

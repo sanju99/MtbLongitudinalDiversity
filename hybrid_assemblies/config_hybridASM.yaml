@@ -1,0 +1,8 @@
+RefGenome_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/H37Rv_NC_000962.3.fna'
+RefGenome_GFF_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/H37Rv.NCBI.gff3'
+H37rv_DnaA_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/dnaA.fna'
+Kraken2_DB_PATH: "/n/data1/hms/dbmi/farhat/mm774/References/Kraken2_DB_Dir/Kraken2_DB"
+output_dir: "/n/data1/hms/dbmi/farhat/rollingDB/TRUST/PacBio_Illumina_hybridASM"
+inputSampleData_TSV: "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/data/LR_SR_combined_data_to_run.tsv"
+Illumina_FQ_DIR: "/n/data1/hms/dbmi/farhat/fastq_db/TRUST_Illumina/TRUST.SRWGS.FQs.AllSets.RenamedAndLanesMerged"
+taxid: 77643

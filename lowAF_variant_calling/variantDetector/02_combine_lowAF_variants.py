@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import glob, os, argparse, time, vcf, warnings
 warnings.filterwarnings('ignore')
+from utils import *
 
 parser = argparse.ArgumentParser()
 
@@ -17,20 +18,6 @@ lowAF_variants_H37Rv_BED_fName = cmd_line_args.lowAF_variants_H37Rv_BED_fName
 lowAF_variants_H37Rv_TSV_fName = cmd_line_args.lowAF_variants_H37Rv_TSV_fName
 
 save_dir = os.path.dirname(os.path.dirname(lowAF_variants_personal_genome_BED_fName))
-
-
-def apply_lowAF_QCfilters(df_variants, AF_thresh=0.05, AF_max=0.98, MQ_thresh=40, num_support_each_direction=2):
-    
-    # add AF column
-    df_variants['AF'] = df_variants['AO'] / df_variants['DP']
-    
-    df_lowAF_variants = df_variants.query("AF >= @AF_thresh & AF <= @AF_max & MQM >= @MQ_thresh")
-
-    df_lowAF_variants = pd.concat([df_lowAF_variants.query("(REF.str.len() - ALT.str.len() > 10)"),
-                                   df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & SAF >= @num_support_each_direction & SAR >= @num_support_each_direction")
-                                  ])    
-    
-    return df_lowAF_variants.reset_index(drop=True)
 
 
 ############################## STEP 1: CREATE GROUND TRUTH VARIANTS CSV FILE IN H37Rv COORDINATES ##############################
@@ -107,7 +94,7 @@ df_lowAF_variants_H37Rv_asm['AF'] = df_lowAF_variants_H37Rv_asm['AO'] / df_lowAF
 # for those where the minor AF is not the listed AF, switch REF and ALT. This is because of the difference between H37Rv and the personal ref genome
 # i.e. if H37Rv = G (15%) and the alternate allele = C (85%), then in the H37Rv VCF it will say REF = G, ALT = C with AF = 0.85
 # but that means that in the personal genome VCF, the major allele is C, so the VCF entry will be REF = C, ALT = G with AF = 0.15
-# these are the same information, so need to switch things around because when using the apply_lowAF_QCfilters function, it will be screened out due to the AF max of 0.75
+# these are the same information, so need to switch things around because when using the apply_freebayes_lowAF_QCfilters function, it will be screened out due to the AF max of 0.75
 df_lowAF_variants_H37Rv_asm['minor_AF'] = np.min([df_lowAF_variants_H37Rv_asm['AF'], 1 - df_lowAF_variants_H37Rv_asm['AF']], axis=0)
 
 df_lowAF_variants_H37Rv_asm.rename(columns={'REF': 'orig_REF', 'ALT': 'orig_ALT'}, inplace=True)
@@ -120,12 +107,12 @@ df_lowAF_variants_H37Rv_asm.loc[df_lowAF_variants_H37Rv_asm['AF'] != df_lowAF_va
 df_lowAF_variants_H37Rv_asm.loc[df_lowAF_variants_H37Rv_asm['AF'] == df_lowAF_variants_H37Rv_asm['minor_AF'], 'REF'] = df_lowAF_variants_H37Rv_asm['orig_REF']
 df_lowAF_variants_H37Rv_asm.loc[df_lowAF_variants_H37Rv_asm['AF'] == df_lowAF_variants_H37Rv_asm['minor_AF'], 'ALT'] = df_lowAF_variants_H37Rv_asm['orig_ALT']
 
-# then rename the AF columns so that we use the minor AF in the apply_lowAF_QCfilters function
+# then rename the AF columns so that we use the minor AF in the apply_freebayes_lowAF_QCfilters function
 df_lowAF_variants_H37Rv_asm.rename(columns={'AF': 'orig_AF'}, inplace=True)
 df_lowAF_variants_H37Rv_asm.rename(columns={'minor_AF': 'AF'}, inplace=True)
 
 # then after the switch above, apply QC filters to keep only the high quality ones and remove those with fixed allele frequencies
-df_lowAF_variants_H37Rv_asm = apply_lowAF_QCfilters(df_lowAF_variants_H37Rv_asm)
+df_lowAF_variants_H37Rv_asm = apply_freebayes_lowAF_QCfilters(df_lowAF_variants_H37Rv_asm)
 
 df_lowAF_variants_H37Rv_asm[keep_cols].to_csv(f"{save_dir}/lowAF_comparison/H37Rv_detected.csv", index=False)
 

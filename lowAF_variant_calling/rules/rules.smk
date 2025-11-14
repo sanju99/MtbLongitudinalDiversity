@@ -2,6 +2,7 @@ import os, glob
 import numpy as np
 import pandas as pd
 
+
 # define some paths to make the path names more readable
 sample_out_dir = f"{output_dir}/{{sample_ID}}"
 run_out_dir = f"{output_dir}/{{sample_ID}}/{{run_ID}}"
@@ -149,30 +150,6 @@ rule extract_kraken_read_names:
         rm {input.kraken_classifications}
         """
 
-
-
-rule kraken_patch:
-    input:
-        fastq1_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R1.trimmed.fastq.gz",
-        fastq2_trimmed = f"{run_out_dir}/fastp/{{run_ID}}.R2.trimmed.fastq.gz",
-        keep_read_names = f"{run_out_dir}/kraken/keep_read_names.txt.gz",
-    output:
-        fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R1.kraken.filtered.fastq.gz",
-        fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R2.kraken.filtered.fastq.gz",    
-        keep_read_names_unzipped = temp(f"{run_out_dir}/kraken/keep_read_names.txt"),
-    conda:
-        f"{conda_directory}/envs/read_processing_aln.yaml"
-    shell:
-        """
-        gunzip -c {input.keep_read_names} > {output.keep_read_names_unzipped}
-        
-        # seqtk will write outputs to unzipped files, even if the input was compressed
-        seqtk subseq {input.fastq1_trimmed} {input.keep_read_names} | gzip -c > {output.fastq1_trimmed_classified} 
-        seqtk subseq {input.fastq2_trimmed} {input.keep_read_names} | gzip -c > {output.fastq2_trimmed_classified} 
-        
-        rm {input.fastq1_trimmed} {input.fastq2_trimmed}
-        """
-        
 
 
 rule extract_kraken_reads:
@@ -382,6 +359,7 @@ rule freebayes_variant_calling:
         # so left-align indels and drop duplicate records
         # leave --min-alternate-count at the default of 2
         # the minimum AF we're going down to is 1%, so set --min-alternate-fraction to 0.01
+        # --max-complex-gap
         freebayes -f {params.ref_genome} \
                   -p 1 \
                   --min-alternate-count 2 \
@@ -391,7 +369,104 @@ rule freebayes_variant_calling:
                   -b {input.merged_bam_file} \
                   -v {output.vcf_file_init}
         """
+        
+        
+        
+rule freebayes_variant_calling_all_haplotypes:
+    input:
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+    output:
+        vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.allHaps.vcf",
+    params:
+        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+    conda:
+        f"{conda_directory}/envs/variant_calling.yaml"
+    shell:
+        """
+        # -p is ploidy
+        # freebayes says it automatically does left-alignment of indels, but there was an issue with that in the WHO catalog, so do it as well
+        # so left-align indels and drop duplicate records
+        # leave --min-alternate-count at the default of 2
+        # the minimum AF we're going down to is 1%, so set --min-alternate-fraction to 0.01
+        # --max-complex-gap
+        freebayes -f {params.ref_genome} \
+                  -p 1 \
+                  --min-alternate-count 2 \
+                  --min-alternate-fraction 0.01 \
+                  --min-mapping-quality 30 \
+                  --min-base-quality 30 \
+                  -b {input.merged_bam_file} \
+                  -v {output.vcf_file_init} \
+                  --report-all-haplotype-alleles
+        """
+        
 
+
+
+
+
+rule freebayes_split_haplotypes_separate_records:
+    input:
+        vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.allHaps.vcf",
+    output:
+        vcf_file_vcfwave = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.vcfwave.vcf"),
+        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.vcf",
+    params:
+        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
+    conda:
+        f"{conda_directory}/envs/variant_normalization.yaml"
+    shell:
+        """
+        # vcfwave properly splits them, but misses splitting the AO field
+        vcfwave {input.vcf_file_init} | bedtools subtract -a '-' -b {params.exclude_regions} -header | bcftools sort > {output.vcf_file_vcfwave}
+        
+        # vcfwave won't split multiallelic SNPs, so do that here
+        bcftools norm --multiallelics -snps {output.vcf_file_vcfwave} > {output.vcf_file_split}
+        """
+        
+        
+
+
+rule fix_AO_field_split_haplotypes:
+    input:
+        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.vcf",
+    output:
+        vcf_file_split_fixedAO = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.vcf",
+    shell:
+        """
+        set +u
+        eval "$(conda shell.bash hook)"
+        conda activate base
+        set -u
+        
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/rules/split_AO_haplotypes.py \
+                -i {input.vcf_file_split} \
+                -o {output.vcf_file_split_fixedAO}
+        """
+
+
+
+rule extract_TSV_of_final_freebayes_VCF:
+    input:
+        vcf_file_split_fixedAO = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.vcf",
+    output:
+        vcf_file_final = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.final.vcf",
+        field_names = temp(f"{sample_out_dir}/freebayes/field_names.txt"),
+        tsv_file_final = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.final.tsv",
+    conda:
+        f"{conda_directory}/envs/variant_annotation.yaml"
+    params:
+        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+    shell:
+        """
+        # left-normalize indels. Don't do anything to multiallelics
+        bcftools norm {input.vcf_file_split_fixedAO} --fasta-ref {params.ref_genome} > {output.vcf_file_final}
+
+        echo -e "POS\nREF\nALT\nQUAL\nFILTER" > {output.field_names}
+        grep "^##INFO=<ID=" {output.vcf_file_final} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
+        
+        SnpSift extractFields {output.vcf_file_final} $(paste -sd " " {output.field_names}) > {output.tsv_file_final}
+        """
 
 
 
@@ -399,59 +474,57 @@ rule freebayes_VCF_normalization_decomposition:
     input:
         vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf",
     output:
-        vcf_file_norm = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.norm.vcf"),
-        vcf_file_atomized = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.atomized.vcf"),
+        vcf_file_split = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.split.vcf"),
         vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
     conda:
-        f"{conda_directory}/envs/variant_calling.yaml"
+        f"{conda_directory}/envs/variant_normalization.yaml"
     shell:
         """
-        # left-align and deduplicate variants with the same POS, REF, and ALT in the full VCF file
-        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {input.vcf_file_init} > {output.vcf_file_norm}
-
-        # Split (split = '-' before any, join = '+') multi-allelic sites for easier parsing of the variants. But bcftools norm will not do --rm-dup and --multiallelics in the same step
-        # -a is atomize, to split complex variants into multiple lines of simple variants (i.e. MNPs to multiple SNPs or separating an indel and SNP in close proximity)
-
-        # for this to work, CAN NOT split and atomize in the same step. First, atomize. Second, split multiallelics
-        bcftools norm -a {output.vcf_file_norm} > {output.vcf_file_atomized}
+        # left-align indels and split multiallelics after decomposing variants above
+        bcftools norm --multiallelics -both {input.vcf_file_init} --fasta-ref {params.ref_genome} > {output.vcf_file_split}
         
-        # remove cases where ALT == '*'. This occurs when you have overlapping variants, which are created when we atomize complex variants
-        # to be safe, sort again before saving
-        bcftools norm --multiallelics -both {output.vcf_file_atomized} --fasta-ref {params.ref_genome} | bcftools filter -e "ALT=='*'" | bcftools sort > {output.vcf_file}
+        # vcfwave won't split MNPs into consecutive SNPs, which is good in this case so that snpEff annotates them properly in the next step
+        vcfwave {output.vcf_file_split} | bcftools sort > {output.vcf_file}
         """
 
 
 
 rule excludeLowConf_regions_freebayes_VCF:
     input:
-        vcf_file_annot = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
+        vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
     output:
-        vcf_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.vcf",
+        vcf_file_annot = f"{sample_out_dir}/freebayes/{{sample_ID}}.eff.vcf",
         tsv_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.tsv",
+        
+        vcf_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.eff.vcf",
         tsv_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.tsv",
         
         field_names = temp(f"{sample_out_dir}/freebayes/field_names.txt"),
     conda:
         f"{conda_directory}/envs/variant_annotation.yaml"
     params:
+        snpEff_db = config['snpEff_db'],
         exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
     shell:
         """
+        # annotate with snpeff
+        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_file} > {output.vcf_file_annot}
+
         # make a TSV file version of each of the VCF subsets made above (and the full one after excluding low confidence sites)
         # get all field names because not sure which ones we will need for low AF variant detection
-        echo -e "POS\nREF\nALT\nQUAL\nFILTER" > {output.field_names}
-        grep "^##INFO=<ID=" {input.vcf_file_annot} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
-                
-        # this BED file is /home/sak0914/Mtb_Megapipe/references/ref_genome/RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed with extensions of 50 bp on each side of each region
-        bedtools subtract -a {input.vcf_file_annot} -b {params.exclude_regions} -header > {output.vcf_exclude_low_conf}
+        echo -e "POS\nREF\nALT\nQUAL\nFILTER\nANN[0].GENE\nANN[0].HGVS_C\nANN[0].HGVS_P" > {output.field_names}
+        grep "^##INFO=<ID=" {output.vcf_file_annot} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
         
-        # write TSV files of both
-        SnpSift extractFields {input.vcf_file_annot} $(paste -sd " " {output.field_names}) > {output.tsv_file}
-        SnpSift extractFields {output.vcf_exclude_low_conf} $(paste -sd " " {output.field_names}) > {output.tsv_exclude_low_conf}
+        # full TSV file, WITH the excluded regions          
+        SnpSift extractFields {output.vcf_file_annot} $(paste -sd " " {output.field_names}) > {output.tsv_file}
+        
+        # this BED file is /home/sak0914/Mtb_Megapipe/references/ref_genome/RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed with extensions of 50 bp on each side of each region
+        bedtools subtract -a {output.vcf_file_annot} -b {params.exclude_regions} -header > {output.vcf_exclude_low_conf}
+        SnpSift extractFields {output.vcf_exclude_low_conf} $(paste -sd " " {output.field_names}) > {output.tsv_exclude_low_conf}        
         """
-
+        
 
 
 rule write_lowAF_SNPs:
@@ -464,10 +537,7 @@ rule write_lowAF_SNPs:
         sample_ID = f"{{sample_ID}}",
     shell:
         """
-        set +u
-        eval "$(conda shell.bash hook)"
-        conda activate bayesian_modeling
-        set -u
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
         
         python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/03_get_H37Rv_alignment_stats.py \
                 -s {params.sample_ID} \
@@ -475,24 +545,7 @@ rule write_lowAF_SNPs:
                 -v {input.tsv_exclude_low_conf}
         """
         
-
-rule annotate_extract_freebayes_variants:
-    input:
-        vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
-    output:
-        vcf_file_annot = f"{sample_out_dir}/freebayes/{{sample_ID}}.eff.vcf",
-    conda:
-        f"{conda_directory}/envs/variant_annotation.yaml"
-    params:
-        snpEff_db = config['snpEff_db'],
-    shell:
-        """
-        # run snpEff annotation
-        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_file} > {output.vcf_file_annot}
-        
-        rm {input.vcf_file}
-        """
-        
+              
         
         
 rule create_VCF_subsets_ROI:
@@ -553,7 +606,8 @@ rule pilon_variant_calling:
         vcf_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.vcf"),
         vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
         fasta_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.fasta"),        
-        variants_vcf_file = f"{sample_out_dir}/pilon/{{sample_ID}}_variants.vcf",
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
         sample_pilon_dir = f"{sample_out_dir}/pilon",
@@ -563,35 +617,57 @@ rule pilon_variant_calling:
         """
         pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
             
-        # left-align indels and drop duplicates, then gzip the full VCF file 
+        # left-align indels and split multi-allelics, then gzip the full VCF file 
         # this affects those cases where the position of the indel is ambiguous
-        # however, because of the shifting positions, the position of the indel can change, so need to sort it
-        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
+        bcftools norm --multiallelics -both --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
+                        
+        # save a VCF file of the SNP variants. Anything with BC >= 5 for at least 2 alleles       
+        bcftools filter -i '(strlen(REF) == strlen(ALT)) & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {output.vcf_file_gzip} > {output.vcf_SNPs}
         
-        # save a VCF file of the variants
-        # bcftools view --types snps,mnps,indels,other {output.vcf_file_gzip} > {output.variants_vcf_file}
-        
-        bcftools filter -i '((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {output.vcf_file_gzip} > {output.variants_vcf_file}
+        # indels won't be included, so save a separate file of indels, where IC >= 5 or DC >= 5
+        bcftools filter -i "(strlen(REF) != strlen(ALT)) & (IC >= 5 | DC >= 5)" {output.vcf_file_gzip} > {output.vcf_indels}
         """
 
 
-rule save_TSV_files_of_VCF_files:
+
+
+rule annotate_exclude_low_confidence_regions_pilon_VCF:
     input:
-        pilon_vcf_file = f"{sample_out_dir}/pilon/{{sample_ID}}_variants.vcf",
-        freebayes_vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
     output:
-        pilon_tsv_file = f"{sample_out_dir}/pilon/{{sample_ID}}_variants.tsv",
-        freebayes_tsv_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.tsv",
+        field_names = temp(f"{sample_out_dir}/pilon/field_names.txt"),
+        
+        vcf_SNPs_annot = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.eff.vcf",
+        vcf_indels_annot = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.eff.vcf",
+                
+        vcf_exclude_low_conf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.eff.vcf",
+        tsv_exclude_low_conf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.tsv",
+        
+        vcf_exclude_low_conf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.excludeLowConf.eff.vcf",
+        tsv_exclude_low_conf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.excludeLowConf.tsv",
     conda:
-        f"{primary_directory}/envs/variant_annotation.yaml"
+        f"{conda_directory}/envs/variant_annotation.yaml"
+    params:
+        snpEff_db = config['snpEff_db'],
+        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
     shell:
         """
-        # save a CSV file of the variants. Don't save AF in either case, they will be computed from the reads
-        # for pilon, AF = 0 for low frequency variants
-        # SnpSift extractFields {input.pilon_vcf_file} CHROM POS REF ALT QUAL FILTER IMPRECISE DP TD BQ MQ QD BC QP PC IC DC XC AC > {output.pilon_tsv_file}
+        # annotate with snpeff
+        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_SNPs} > {output.vcf_SNPs_annot}
+        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_indels} > {output.vcf_indels_annot}
+
+        # make a TSV file version of each of the VCF subsets made above (and the full one after excluding low confidence sites)
+        # get all field names because not sure which ones we will need for low AF variant detection
+        echo -e "POS\nREF\nALT\nQUAL\nFILTER\nANN[0].GENE\nANN[0].HGVS_C\nANN[0].HGVS_P" > {output.field_names}
+        grep "^##INFO=<ID=" {output.vcf_SNPs_annot} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
+
+        # exclude low confidence regions and save
+        bedtools subtract -a {output.vcf_SNPs_annot} -b {params.exclude_regions} -header > {output.vcf_exclude_low_conf_SNPs}
+        SnpSift extractFields {output.vcf_exclude_low_conf_SNPs} $(paste -sd " " {output.field_names}) > {output.tsv_exclude_low_conf_SNPs}   
         
-        # save a CSV file of the freebayes variants. For freebayes, AF is 0 or 1 in haploid organisms
-        SnpSift extractFields {input.freebayes_vcf_file} CHROM POS REF ALT QUAL FILTER DP DPB RO AO MQM MQMR SRF SRR SAF SAR SRP SAP RPP RPPR RPL RPR > {output.freebayes_tsv_file}
+        bedtools subtract -a {output.vcf_indels_annot} -b {params.exclude_regions} -header > {output.vcf_exclude_low_conf_indels}
+        SnpSift extractFields {output.vcf_exclude_low_conf_indels} $(paste -sd " " {output.field_names}) > {output.tsv_exclude_low_conf_indels}
         """
         
 

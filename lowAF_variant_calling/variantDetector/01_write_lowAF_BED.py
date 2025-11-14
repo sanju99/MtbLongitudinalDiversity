@@ -32,7 +32,7 @@ def filter_high_quality_lowAF_variants(input_file, depth_file, lowAF_variants_be
     if use_pilon:
         df_lowAF_variants = apply_pilon_lowAF_QCfilters(df_variants)
     else:
-        df_lowAF_variants = apply_freebayes_lowAF_QCfilters(df_variants)
+        df_lowAF_variants = apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98)
         
     # require that all low-AF variants occur in areas where the depth is at least half the median depth
     df_depth = pd.read_csv(depth_file, compression='gzip', header=None, sep='\t', names=['CHROM','POS', 'DEPTH'])
@@ -45,12 +45,6 @@ def filter_high_quality_lowAF_variants(input_file, depth_file, lowAF_variants_be
         df_lowAF_variants = df_lowAF_variants.query("TD >= @depth_min")# & TD <= @depth_max")
     else:
         df_lowAF_variants = df_lowAF_variants.query("DP >= @depth_min")# & DP <= @depth_max")
-    
-    # use the total depth in df_depth, rather than the freebayes DP value? DP is the total depth, not filtered to be high quality reads only
-    low_depth_sites = df_depth.query("DEPTH < @depth_min").POS.values
-    # high_depth_sites = df_depth.query("DEPTH > @depth_max").POS.values
-    
-    df_lowAF_variants = df_lowAF_variants.query("POS not in @low_depth_sites")# & POS not in @high_depth_sites")
 
     # write a BED-formatted file. Keep all the other fields in the CSV to easily get variant information
     # first get the chromosome name, which is the name of the contig from the hybrid assembly

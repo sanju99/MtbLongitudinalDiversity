@@ -1,0 +1,7 @@
+name: circlator
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - circlator=1.5.5

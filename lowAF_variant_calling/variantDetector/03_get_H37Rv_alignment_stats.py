@@ -21,6 +21,16 @@ genome_file = cmd_line_args.genome_file
 
 out_dir = f"{os.path.dirname(os.path.dirname(bam_file))}/freebayes"
 
+h37Rv_path = "/n/data1/hms/dbmi/farhat/Sanjana/H37Rv"
+h37Rv_regions = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_v4.csv"))
+
+# remove rRNAs, which are highly conserved. rrs, rrl, and rrf
+rRNA_pos = []
+
+for i, row in h37Rv_regions.query("Functional_Category=='stable RNAs' & Feature=='rRNA'").iterrows():
+    print(row['Name'])
+    rRNA_pos += list(np.arange(row['Start'], row['Stop'] + 1))
+
 # if os.path.isfile(f"{out_dir}/lowAF_SNPs.csv"):
 #     exit()
 
@@ -31,19 +41,16 @@ out_dir = f"{os.path.dirname(os.path.dirname(bam_file))}/freebayes"
 ############################ STEP 0: READ IN THE TEXT FILE OF CANDIDATE LOW-AF VARIANTS ############################
 
 
-df_variants = pd.read_csv(variants_file, sep='\t')
+df_variants = pd.read_csv(variants_file, sep='\t').query("POS not in @rRNA_pos")
 
 # keep only low frequency variants. Extract fixed variants separately
-df_variants = apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98)
-
-# split SNPs and indels in close proximity to each other
-# df_variants = split_SNPs_indels_same_haplotype(df_variants)
+df_variants = apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=1.2)
 
 # only SNPs for right now. Indels are more complicated, i.e. don't have a base quality. Probably have to run only some of the steps on the indels
 df_variants = df_variants.query("REF.str.len() == ALT.str.len()").reset_index(drop=True)
 
-# split MNPs into SNPs
-# df_variants = split_MNPs_into_SNPs(df_variants)
+# split MNPs into SNPs. Couldn't get this to work using other tools, but MNPs to SNPs is pretty easy
+df_variants = split_MNPs_into_SNPs(df_variants)
 
 
 ############################ STEP 1: ROLLING AVERAGE OF COVERAGE FROM LEFT AND RIGHT SIDES ############################
@@ -52,7 +59,7 @@ df_variants = df_variants.query("REF.str.len() == ALT.str.len()").reset_index(dr
 depth_file = os.path.join(os.path.dirname(bam_file), f"{sample}.depth.tsv.gz")
 df_depth = pd.read_csv(depth_file, compression='gzip', sep='\t', header=None, names=['CHROM', 'POS', 'COV'])
 
-# compute rolling average of coverage. Smaller than 100 is too small, not enough smoothing
+# compute rolling average of coverage. Smaller than 100 is too small, not enough smoothing.
 window_size = 100
 df_depth['COV_LEFT_ROLLING_AVG'] = df_depth['COV'].rolling(window=window_size, min_periods=1, closed='right').mean()
 

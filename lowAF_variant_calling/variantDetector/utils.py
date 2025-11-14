@@ -12,13 +12,21 @@ def fasta_length(path):
     return length
 
 
-def apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98, MQ_thresh=40, num_support_each_direction=2):
+def apply_freebayes_lowAF_QCfilters(df_variants, DP=True, AF_min=0.05, AF_max=0.98, MQ_thresh=40, num_support_each_direction=2):
+    '''
+    Use 0.98 when doing the validaiton using the personal ref genomes because if there's a variant present at 100% relative to H37Rv, there won't be a variant when called against the
+    personal reference genome because it's purely the nucleotide in the assembly. 
+    
+    But for calling variants against H37Rv, later on, keep everything
+    '''
     
     # add AF column
-    df_variants['ALT']
     df_variants['AF'] = df_variants['AO'] / df_variants['DP']
     
-    df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max & MQM >= @MQ_thresh")
+    if DP:
+        df_lowAF_variants = df_variants.query("DP >= 5 & AF >= @AF_min & AF <= @AF_max & MQM >= @MQ_thresh")
+    else:
+        df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max & MQM >= @MQ_thresh")
 
     df_lowAF_variants = pd.concat([df_lowAF_variants.query("(REF.str.len() - ALT.str.len() > 10)"),
                                    df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & SAF >= @num_support_each_direction & SAR >= @num_support_each_direction")
@@ -27,29 +35,6 @@ def apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98, MQ_th
     return df_lowAF_variants.reset_index(drop=True)
 
 
-def get_ALT_allele_base_counts(row):
-    
-    ref_allele = row['REF']
-    alt_allele = row['ALT']
-    BC_string = row['BC']
-    IC = row['IC']
-    DC = row['DC']
-    
-    BC_lst = BC_string.split(',')
-    
-    bases_lst = ['A', 'C', 'G', 'T']
-    
-    if alt_allele in bases_lst:
-        keep_idx = bases_lst.index(alt_allele)
-        return int(BC_lst[keep_idx])
-    # indels won't have a read support value. It will be in IC or DC, so use that
-    else:
-        if len(alt_allele) > len(ref_allele):
-            return IC
-        elif len(ref_allele) > len(alt_allele):
-            return DC
-        else:
-            return np.nan
 
 
 def apply_pilon_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98, MQ_thresh=40, num_support=5):
@@ -57,21 +42,90 @@ def apply_pilon_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98, MQ_thresh
     For columns BC and QP, the order of values is A,C,G,T
     '''
     
-    # add the number of bases supporting the alternative allele
-    df_variants['ALT_read_count'] = df_variants.apply(lambda row: get_ALT_allele_base_counts(row), axis=1)
-     
-    # add AF column
-    df_variants['AF'] = df_variants['ALT_read_count'] / df_variants['DP']
+    df_variants['IMPRECISE'] = df_variants['IMPRECISE'].astype(int)
     
-    # also exclude imprecise variants
-    df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max & MQ >= @MQ_thresh & IMPRECISE == 0")
-
-
+    # exclude imprecise variants, low depth, and low mappability. Filtering first speeds up the next step
+    # some variants could have high IC or DC in mixed lineage samples. One strain may have the SNP and another may have the deletion
+    # idk, we would still need to separate them before being confidence in the variants
+    df_variants = df_variants.query("DP >= 5 & MQ >= @MQ_thresh & IMPRECISE == 0").query("REF.str.len() == ALT.str.len()")
+    
+    # add the number of bases supporting the alternative allele and AF
+    df_variants = add_ALT_allele_base_counts_to_df(df_variants)
+    
+    # AF thresholding 
+    df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max")
+    
     df_lowAF_variants = pd.concat([df_lowAF_variants.query("(REF.str.len() - ALT.str.len() > 10)"),
                                    df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & ALT_read_count >= @num_support")
                                   ])    
     
     return df_lowAF_variants.reset_index(drop=True)
+
+
+
+
+def add_ALT_allele_base_counts_to_df(df):
+    
+    df = df.reset_index(drop=True)
+    
+    for i, row in df.iterrows():
+        
+        ref_allele = row['REF']
+        alt_allele = row['ALT']
+        BC_string = row['BC']
+        IC = row['IC']
+        DC = row['DC']
+
+        BC_lst = np.array(BC_string.split(',')).astype(int)
+
+        bases_lst = np.array(['A', 'C', 'G', 'T'])
+
+        # these are below pilon's threshold for returning variants, but every row has at least 2 bases with a non-zero value in the BC column, so there IS another allele
+        if alt_allele == '.':
+
+            # reduce it to the biallelic case, so take only the highest and second highest AF
+            present_alleles = bases_lst[np.argwhere(BC_lst != 0).flatten()]
+
+            # do that by zeroing out the other BCs. Keep only those that are at least the value of the 
+            BC_lst = np.array([val if val >= np.sort(BC_lst)[-2] else 0 for val in BC_lst])
+
+            # if there is no ALT allele, then REF must be in this list
+            assert ref_allele in present_alleles
+
+            # then assign the minor one to be the ALT allele
+            minor_idx = np.argwhere((BC_lst != np.max(BC_lst)) & (BC_lst != 0)).flatten()
+
+            # then this should be of length 1 because we zeroed the ones not in the top two and also required that it's not equal to the maximum (major allele) 
+            # if it's not length 1, then there were multiple minor alleles at the same DP 
+            # it's probably noise because the probability of that actually happening is really low
+            # but randomly pick one if that's the case
+            if len(minor_idx) > 1:
+                # print(i, minor_idx, present_alleles, BC_lst)
+                minor_idx = np.random.choice(minor_idx)
+            else:
+                assert len(minor_idx) == 1
+                minor_idx = minor_idx[0]
+
+            # edit the dataframe
+            df.loc[i, ['ALT', 'ALT_read_count']] = [bases_lst[minor_idx], BC_lst[minor_idx]]
+
+        # this is the easy case if the allele is present at high enough frequency that pilon finds it as an allele
+        elif alt_allele in bases_lst:
+            
+            keep_idx = list(bases_lst).index(alt_allele)
+            
+            df.loc[i, 'ALT_read_count'] = BC_lst[keep_idx]
+        
+        # indels won't have a read support value. It will be in IC or DC, so use that
+        else:
+            if len(alt_allele) > len(ref_allele):
+                df.loc[i, 'ALT_read_count'] = IC
+                
+            elif len(ref_allele) > len(alt_allele):
+                df.loc[i, 'ALT_read_count'] = DC
+                
+    df['AF'] = df['ALT_read_count'] / df['DP']
+    return df
 
 
 
@@ -87,8 +141,8 @@ def save_table_of_soft_clips(sample, bam_file, ref_genome_file):
     records = []
     for read in bam.fetch():
 
-        # skip unmapped reads
-        if read.is_unmapped:
+        # skip unmapped reads or those with secondary or supplementary alignments
+        if read.is_unmapped or read.is_secondary or read.is_supplementary:
             continue
             
         num_left_clip = 0
@@ -154,7 +208,7 @@ def save_table_of_soft_clips(sample, bam_file, ref_genome_file):
     
     # then run the following to compute the number of soft clipped 
     if not os.path.isfile(ref_genome_chrom_lengths_file):
-        subprocess.run(f"cut -f1,2 {fName}.fai > {ref_genome_chrom_lengths_file}", shell=True)
+        subprocess.run(f"cut -f1,2 {ref_genome_file}.fai > {ref_genome_chrom_lengths_file}", shell=True)
 
     soft_clips_by_pos_file = os.path.join(dir_name, f"{sample}.softClips.tsv.gz")
     subprocess.run(f"bedtools genomecov -i {soft_clipping_BED_file} -g {ref_genome_chrom_lengths_file} -d | gzip -c > {soft_clips_by_pos_file}", shell=True)
@@ -206,8 +260,8 @@ def save_table_of_discordant_reads(sample, bam_file, ref_genome_file):
     
     for read in bam.fetch():
 
-        # skip unmapped reads
-        if read.is_unmapped:
+        # skip unmapped reads or those with secondary or supplementary alignments
+        if read.is_unmapped or read.is_secondary or read.is_supplementary:
             continue
 
         orientation = get_orientation(read)
@@ -248,7 +302,7 @@ def save_table_of_discordant_reads(sample, bam_file, ref_genome_file):
     
     # then run the following to compute the number of soft clipped 
     if not os.path.isfile(ref_genome_chrom_lengths_file):
-        subprocess.run(f"cut -f1,2 {fName}.fai > {ref_genome_chrom_lengths_file}", shell=True)
+        subprocess.run(f"cut -f1,2 {ref_genome_file}.fai > {ref_genome_chrom_lengths_file}", shell=True)
 
     discordant_alns_by_pos_file = os.path.join(dir_name, f"{sample}.DiscordantReads.tsv.gz")
     subprocess.run(f"bedtools genomecov -i {discordant_alns_BED_file} -g {ref_genome_chrom_lengths_file} -d | gzip -c > {discordant_alns_by_pos_file}", shell=True)
@@ -262,7 +316,8 @@ def compute_mean_base_quality_of_variant_support(bam_file, pos, low_freq_allele)
     
     base_qualities_low_freq_allele = []
 
-    for pileupcolumn in bam.pileup('Chromosome', pos-1, pos, truncate=True):
+    # default min_base_quality is 13, so bad reads get excluded, which negates the purpose of this function...rolls eyes. min_mapping_quality default is 0
+    for pileupcolumn in bam.pileup('Chromosome', pos-1, pos, truncate=True, min_base_quality=0):
 
         for pileupread in pileupcolumn.pileups:
             if pileupread.is_del or pileupread.is_refskip:

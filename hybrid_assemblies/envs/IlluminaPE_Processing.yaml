@@ -1,0 +1,10 @@
+name: IlluminaPE_Processing
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - bwa=0.7.17
+  - samtools
+  - picard=2.22.5
+  - pilon=1.23
