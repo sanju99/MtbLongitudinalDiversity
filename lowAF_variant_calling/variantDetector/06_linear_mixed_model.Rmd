@@ -19,39 +19,33 @@ library(broom.mixed)
 
 ```{r}
 fit_model <- TRUE
-# model_dir <- "all_samples_training" 
-# model_dir <- "unmixed_only"
-model_dir <- "unmixed_only_no_drop_duplicates"
-
-# Check if the directory for the individual cross-validation models exists, and create it if not
-if (!dir.exists(paste(model_dir, "cross_validation", sep='/'))) {
-  dir.create(paste(model_dir, "cross_validation", sep='/'), recursive = TRUE)
-}
+model_dir <- "unmixed_only_v2"
 
 model_dir = paste("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/", model_dir, sep="")
 
 # this is fixed variants (AF > 0.95) for all isolates, both train and validation
-df_train <- read.csv(paste(model_dir, "training_data.csv", sep="/"))
+# df_fixed <- read.csv(paste(model_dir, "/fixed_variants.csv.gz", sep=""))
+df_train <- read.csv(paste(model_dir, "/training_data.csv", sep=""))
 
 predictors <- c("COV_RATIO", "CLIPPED_BASES_RATIO", "DISCORDANT_READS_RATIO", "Mean_BQ_ALT_allele", "SAF_prop_deviation_from_half")
+
+# just get X for df_fixed
+# X_fixed <- df_fixed[, predictors]
+# fixed_samples <- df_fixed[['SampleID']]
 
 # Extract X and y
 X_train <- df_train[, predictors]
 y_train <- df_train[['Real']]
 train_samples <- df_train[['SampleID']]
 
-df_test <- read.csv(paste(model_dir, "validation_data.csv", sep="/"))
-
-# dim(df_full_train)
-# dim(df_test)
-# table(df_full_train$Real)
+df_val <- read.csv(paste(model_dir, "/validation_data.csv", sep=""))
 
 # Extract X and y
-X_test <- df_test[, predictors]
-test_samples <- df_test[['SampleID']]
+X_val <- df_val[, predictors]
+val_samples <- df_val[['SampleID']]
 
 dim(X_train)
-dim(X_test)
+dim(X_val)
 table(df_train$Real)
 ```
 
@@ -60,271 +54,152 @@ table(df_train$Real)
 X_train_mean <- sapply(X_train, mean, na.rm = TRUE)
 X_train_sd <- sapply(X_train, sd, na.rm = TRUE)
 
-save(X_train_mean, file = paste(model_dir, "X_train_mean.RData", sep="/"))
-save(X_train_sd, file = paste(model_dir, "X_train_sd.RData", sep="/"))
+save(X_train_mean, file = paste(model_dir, "/X_train_mean.RData", sep=""))
+save(X_train_sd, file = paste(model_dir, "/X_train_sd.RData", sep=""))
 
 # Scale training predictors
 X_train_scaled <- as.data.frame(scale(X_train, center = X_train_mean, scale = X_train_sd))
-X_test_scaled <- as.data.frame(scale(X_test, center = X_train_mean, scale = X_train_sd))
+X_val_scaled <- as.data.frame(scale(X_val, center = X_train_mean, scale = X_train_sd))
+# X_fixed_scaled <- as.data.frame(scale(X_fixed, center = X_train_mean, scale = X_train_sd))
 
 # combine into dataframes
 df_train_scaled = cbind(X_train_scaled, Real = y_train, SampleID = train_samples)
-df_test_scaled = cbind(X_test_scaled, SampleID = test_samples)
+df_val_scaled = cbind(X_val_scaled, SampleID = val_samples)
+# df_fixed_scaled = cbind(X_fixed_scaled, SampleID = fixed_samples)
 
 # then cbind the original df_val with identifier columns
-df_train_scaled = cbind(df_train_scaled, df_train[, c("POS", "REF", "ALT", "AF", "F2", "False_in_all_Ground_Truth_Samples")])
-df_test_scaled = cbind(df_test_scaled, df_test[, c("POS", "REF", "ALT", "AF", "F2", "False_in_all_Ground_Truth_Samples")])
+# df_val_scaled = cbind(df_val_scaled, df_val[, c("POS", "REF", "ALT", "AF")])
+# df_fixed_scaled = cbind(df_fixed_scaled, df_fixed[, c("POS", "REF", "ALT", "AF")])
+```
+    
+    
+```{r}
+compute_metrics <- function(df, pred_col = "predicted", true_col = "Real", threshold = 0.5) {
+  # Binarize predictions based on threshold
+  df$pred_class <- ifelse(df[pred_col] >= threshold, 1, 0)
+  
+  # True positives, false positives, true negatives, false negatives
+  TP <- sum(df$pred_class == 1 & df[true_col] == 1)
+  FP <- sum(df$pred_class == 1 & df[true_col] == 0)
+  TN <- sum(df$pred_class == 0 & df[true_col] == 0)
+  FN <- sum(df$pred_class == 0 & df[true_col] == 1)
+  
+  # Metrics
+  precision <- if ((TP + FP) == 0) NA else TP / (TP + FP)
+  recall <- if ((TP + FN) == 0) NA else TP / (TP + FN)  # Sensitivity
+  specificity <- if ((TN + FP) == 0) NA else TN / (TN + FP)
+  
+  # Return as a list
+  return(list(
+    precision = precision,
+    recall = recall,
+    specificity = specificity,
+    sum_sens_spec = recall + specificity,
+    sum_sens_prec = recall + precision,
+    F1 = 2 * recall * precision / (recall + precision)
+  ))
+}
+# Function to find best threshold
+compute_best_binarization_threshold <- function(df, pred_col = "predicted", true_col = "Real", thresholds = seq(0, 1, 0.01)) {
+  metrics <- sapply(thresholds, function(t) compute_metrics(df, pred_col, true_col, t))
+  metrics_df <- as.data.frame(t(metrics))
+  metrics_df$threshold <- thresholds
+  
+  best_row <- metrics_df[which.max(metrics_df$F1), ]
+  best_thresh <- best_row$threshold
+  
+  return(best_thresh)
+  # return(list(best_threshold = best_thresh, metrics = metrics_df))
+}
 ```
 
 ```{r}
-# ---- Helper metrics ----
-precision <- function(y_true, y_pred) {
-  tp <- sum(y_true == 1 & y_pred == 1)
-  fp <- sum(y_true == 0 & y_pred == 1)
-  if ((tp + fp) == 0) return(0)
-  tp / (tp + fp)
-}
-recall <- function(y_true, y_pred) {
-  tp <- sum(y_true == 1 & y_pred == 1)
-  fn <- sum(y_true == 1 & y_pred == 0)
-  if ((tp + fn) == 0) return(0)
-  tp / (tp + fn)
-}
-f1_from_pr <- function(p, r) {
-  if ((p + r) == 0) return(0)
-  2 * p * r / (p + r)
-}
+# Fit a mixed-effects logistic regression model
+# Build the fixed-effects part of the formula
+fixed_effects <- paste(predictors, collapse = " + ")
 
-compute_best_threshold <- function(y_true, y_score, thresholds = seq(0,0.9,0.1), criterion = c("sum","f1","youden")) {
-  criterion <- match.arg(criterion)
-  results <- data.frame(threshold = thresholds, precision = NA, recall = NA, f1 = NA, youden = NA, metric = NA)
-  for (i in seq_along(thresholds)) {
-    t <- thresholds[i]
-    y_pred <- as.integer(y_score >= t)
-    p <- precision(y_true, y_pred)
-    r <- recall(y_true, y_pred)
-    f1v <- f1_from_pr(p, r)
-    spec <- ifelse(sum(y_true == 0) == 0, NA, sum(y_true == 0 & y_pred == 0)/sum(y_true == 0))
-    youden <- r + spec - 1
-    results$precision[i] <- p
-    results$recall[i] <- r
-    results$f1[i] <- f1v
-    results$youden[i] <- youden
-    results$metric[i] <- switch(criterion, sum = p + r, f1 = f1v, youden = youden)
-  }
-  best_row <- results[which.max(results$metric), ]
-  list(best_threshold = best_row$threshold,
-       table = results,
-       best_row = best_row)
-}
+# Combine into full model formula
+formula_str <- paste0("Real ~ ", fixed_effects, " + (1 | SampleID)")
+model_formula <- as.formula(formula_str)
 
-# ---- CV + Ensemble Function ----
-cross_validate_ensemble <- function(df, predictors, model_dir, k = 5, fit_model = TRUE, use_random_effects = TRUE, thresholds = seq(0,1,0.1), criterion = "f1", seed = 42) {
-  
-  set.seed(seed)
-  if (!dir.exists(model_dir)) dir.create(model_dir, recursive = TRUE)
-  
-  folds <- createFolds(df$Real, k = k, list = TRUE, returnTrain = FALSE)
-  
-  fixed_effects <- paste(predictors, collapse = " + ")
-  models <- vector("list", length(folds))
-  fold_thresholds <- numeric(length(folds))
-  n <- nrow(df)
-  
-  # Store OOF probabilities and fold predictions
-  oof_probs <- numeric(n); oof_probs[] <- NA
-  all_fold_binary <- matrix(NA, nrow = n, ncol = k)
-  all_fold_probs <- matrix(NA, nrow = n, ncol = k)
-  
-  for (i in seq_along(folds)) {
-    
-    cat("Fold", i, "\n")
-    val_idx <- folds[[i]]
-    train_idx <- setdiff(seq_len(n), val_idx)
-    
-    # already been scaled on the full dataset
-    df_train_scaled <- df[train_idx, , drop = FALSE]
-    df_val_scaled <- df[val_idx, , drop = FALSE]
-    
-    # standard scale
-    # X_train_mean <- sapply(df_train[, predictors], mean, na.rm = TRUE)
-    # X_train_sd <- sapply(df_train[, predictors], sd, na.rm = TRUE)
-  
-    # save(X_train_mean, file = file.path(model_dir, paste0("X_train_mean_", i, ".RData")))
-    # save(X_train_sd, file = file.path(model_dir, paste0("X_train_sd_", i, ".RData")))
-    
-    # Scale training predictors
-    # X_train_scaled <- as.data.frame(scale(df_train[, predictors], center = X_train_mean, scale = X_train_sd))
-    # X_val_scaled <- as.data.frame(scale(df_val[, predictors], center = X_train_mean, scale = X_train_sd))
-
-    # combine into dataframes
-    # df_train_scaled = cbind(X_train_scaled, Real = df_train[['Real']], SampleID = df_train[['SampleID']])
-    # df_val_scaled = cbind(X_val_scaled, SampleID = df_val[['SampleID']])
-
-    # then cbind the original df_val with identifier columns
-    # df_train_scaled = cbind(df_train_scaled, df_train[, c("POS", "REF", "ALT", "AF")])
-    # df_val_scaled = cbind(df_val_scaled, df_val[, c("POS", "REF", "ALT", "AF")])
-    
-    formula_str <- if (use_random_effects) {
-      paste0("Real ~ ", fixed_effects, " + (1 | SampleID)")
-    } else {
-      paste0("Real ~ ", fixed_effects)
-    }
-    model_formula <- as.formula(formula_str)
-    
-    if (fit_model) {
-      model <- if (use_random_effects) {
-        glmer(model_formula, data = df_train_scaled, family = binomial(link = "logit"))
-      } else {
-        glm(model_formula, data = df_train_scaled, family = binomial(link = "logit"))
-      }
-      save(model, file = file.path(model_dir, paste0("model_", i, ".RData")))
-    } else {
-      load(file.path(model_dir, paste0("model_", i, ".RData")))
-    }
-    
-    models[[i]] <- model
-    
-    # Predict OOF for validation fold
-    df_val_scaled$pred_prob <- predict(model, newdata = df_val_scaled, type = "response", allow.new.levels = TRUE)
-    oof_probs[val_idx] <- df_val_scaled$pred_prob
-    
-    # Best threshold for this fold's validation
-    # best_res <- compute_best_threshold(y_true = df_val_scaled$Real, y_score = df_val_scaled$pred_prob, thresholds = thresholds, criterion = criterion)
-    # fold_thresholds[i] <- best_res$best_threshold
-    
-    # Predict on all samples using fold threshold for majority vote
-    # all_probs <- predict(model, newdata = df_val_scaled, type = "response", allow.new.levels = TRUE)
-    # all_fold_probs[, i] <- all_probs
-    # all_fold_binary[, i] <- as.integer(all_probs >= fold_thresholds[i])
-  }
-  
-  # Soft voting: average probabilities
-  # soft_probs <- rowMeans(all_fold_probs)
-  
-  # Threshold based on OOF
-  soft_thresh_res <- compute_best_threshold(y_true = df$Real, y_score = oof_probs, thresholds = thresholds, criterion = criterion)
-  soft_threshold <- soft_thresh_res$best_threshold
-  # soft_pred_class <- as.integer(soft_probs >= soft_threshold)
-  
-  # Majority voting
-  # maj_vote_class <- as.integer(rowSums(all_fold_binary) > k/2)
-  
-  # df$soft_pred_class <- soft_pred_class
-  # df$soft_prob <- soft_probs
-  # df$maj_vote_class <- maj_vote_class
-  
-  list(
-    # df = df,
-    models = models,
-    # fold_thresholds = fold_thresholds,
-    soft_threshold = soft_threshold,
-    oof_probs = oof_probs
-    # all_fold_probs = all_fold_probs,
-    # all_fold_binary = all_fold_binary
+# glmer for random effects model. glm for fixed effects only
+if (fit_model) {
+  model <- glmer(
+    model_formula,
+    data = df_train_scaled,
+    family = binomial(link = "logit")
   )
+  
+  # save the fitted model
+  save(model, file = paste(model_dir, "/linear_mixed_model.RData", sep=""))
+
+} else {
+    load(paste(model_dir, "/linear_mixed_model.RData", sep=""))
 }
+ 
+# get predictions on the training set
+df_train_scaled$predicted <- predict(model, type = "response")
 
-res <- cross_validate_ensemble(
-  df = df_train_scaled,
-  predictors = predictors,
-  model_dir = paste(model_dir, "cross_validation", sep="/"),
-  k = 5,
-  fit_model = TRUE,
-  use_random_effects = TRUE,
-  thresholds = seq(0,1,0.1),
-  criterion = "sum"
-)
+# plot ROC AUC
+train_roc_obj <- roc(df_train_scaled$Real, df_train_scaled$predicted)
+plot(train_roc_obj)
+auc(train_roc_obj)
 
-# Soft voting predictions
-# table(res$df$Real, res$df$soft_pred_class)
-
-# Majority vote predictions
-# table(res$df$Real, res$df$maj_vote_class)
-
-# Fold-specific thresholds
-# res$fold_thresholds
-
-# Soft voting threshold. We get the predictions in the next function but use this threshold to binarize
-print(paste("Best threshold", res$soft_threshold))
+# maximize the sum of sensitivity and precision
+best_threshold <- compute_best_binarization_threshold(df_train_scaled)
+print(paste("Best threshold", best_threshold))
 ```
 
 ```{r}
-predict_ensemble <- function(newdata, models, soft_threshold, use_random_effects = TRUE) {
-  k <- length(models)
-  n <- nrow(newdata)
-  
-  # Matrices to store fold predictions
-  all_fold_probs <- matrix(NA, nrow = n, ncol = k)
-  all_fold_binary <- matrix(NA, nrow = n, ncol = k)
-  
-  for (i in seq_len(k)) {
-    model <- models[[i]]
-    
-    # Predict probabilities
-    probs <- predict(model, newdata = newdata, type = "response", allow.new.levels = TRUE)
-    all_fold_probs[, i] <- probs
-    # all_fold_binary[, i] <- as.integer(probs >= fold_thresholds[i])
-  }
-  
-  # Soft voting: average probabilities
-  soft_probs <- rowMeans(all_fold_probs)
-  # If no soft_threshold supplied, default to 0.5
-  soft_pred_class <- as.integer(soft_probs >= soft_threshold)
-  
-  # Majority voting
-  # maj_vote_class <- as.integer(rowSums(all_fold_binary) > k/2)
-  
-  newdata$predicted <- soft_probs
-  newdata$pred_class <- soft_pred_class
-  
-  # Return results
-  newdata
-}
-```
-    
-    
+# get predictions on the training set. allow.new.levels = TRUE ignores random effects if there are new levels because they weren't seen during training. Needed if you have some samples in the validation data not in the training data
+df_val$predicted <- predict(model, newdata = df_val_scaled, allow.new.levels = TRUE, type = "response")
 
-```{r}
-# add predictions for both
-df_train_pred <- predict_ensemble(df_train_scaled, res$models, res$soft_threshold)
-df_test_pred <- predict_ensemble(df_test_scaled, res$models, res$soft_threshold)
+# add the binary predictions, binarized at the best_threshold
+df_val$pred_class <- ifelse(df_val$predicted >= best_threshold, 1, 0)
+
+# get predictions on the training set. re.form = NA ignores random effects. Needed if you have some samples in the validation data not in the training data
+df_train$predicted <- predict(model, newdata = df_train_scaled, type = "response")
+
+# add the binary predictions, binarized at the best_threshold
+df_train$pred_class <- ifelse(df_train$predicted >= best_threshold, 1, 0)
+
+# get predictions for fixed variants, just to see
+# df_fixed$predicted <- predict(model, newdata = df_fixed_scaled, re.form = NA, type = "response")
+# df_fixed$pred_class <- ifelse(df_fixed$predicted >= best_threshold, 1, 0)
 
 # save
-write.csv(df_train_pred, paste(model_dir, "cross_validation", "training_data_with_predictions.csv", sep="/"), row.names = FALSE)
-write.csv(df_test_pred, paste(model_dir, "cross_validation", "validation_data_with_predictions.csv", sep="/"), row.names = FALSE)
+write.csv(df_train, paste(model_dir, "/training_data_with_predictions.csv", sep=""), row.names = FALSE)
+write.csv(df_val, paste(model_dir, "/validation_data_with_predictions.csv", sep=""), row.names = FALSE)
+# write.csv(df_fixed, paste(model_dir, "/fixed_variants_with_predictions.csv", sep=""), row.names = FALSE)
 ```
 
 
 ```{r}
-for (i in seq_along(res$models)) {
-  model <- res$models[[i]]  # extract the i-th model
-  
-  tidy_model <- tidy(model, effects = "fixed", conf.int = TRUE, conf.method = "Wald", exponentiate = TRUE)
+load(paste(model_dir, "/linear_mixed_model.RData", sep=""))
+tidy_model <- tidy(model, effects = "fixed", conf.int = TRUE, conf.method = "Wald", exponentiate = TRUE)
+# tidy_model <- tidy(model, effects = "fixed", conf.int = TRUE, conf.method = "boot", exponentiate = TRUE)
 
-  # write.csv(tidy_model, paste(model_dir, "models", "model_summary.csv", sep=""), row.names=FALSE)
+write.csv(tidy_model, paste(model_dir, "/linear_mixed_model_summary.csv", sep=""), row.names=FALSE)
 
-  term_labels <- c(
-    "COV_RATIO" = "Coverage Ratio",
-    "CLIPPED_BASES_RATIO" = "Clipped Bases Ratio",
-    "DISCORDANT_READS_RATIO" = "Discordant Reads Ratio",
-    "SAF_prop_deviation_from_half" = "Deviation from 50% Forward Reads",
-    "Mean_BQ_ALT_Allele" = "Average Base Quality",
-    "(Intercept)" = "Sample Random Effect"
-  )
-  
-  plot = ggplot(tidy_model, aes(x = estimate, y = term)) +
-    geom_point(size = 3) +
-    geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
-    geom_vline(xintercept = 1, linetype = "dashed", color = "grey40") +
-    scale_x_log10() +
-    scale_y_discrete(labels = term_labels) +  # <--- change labels here
-    theme_minimal() +
-    labs(x = "Odds Ratio (95% CI)", y = NULL)
+term_labels <- c(
+  "COV_RATIO" = "Coverage Ratio",
+  "CLIPPED_BASES_RATIO" = "Clipped Bases Ratio",
+  "DISCORDANT_READS_RATIO" = "Discordant Reads Ratio",
+  "SAF_prop_deviation_from_half" = "Deviation from 50% Forward Reads",
+  "Mean_BQ_ALT_Allele" = "Average Base Quality",
+  "(Intercept)" = "Sample Random Effect"
+)
 
-  # ggsave(paste(model_dir, "/forest_plot.svg", sep=""), plot = plot, width = 6, height = 4, dpi = 300)
+plot = ggplot(tidy_model, aes(x = estimate, y = term)) +
+  geom_point(size = 3) +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "grey40") +
+  scale_x_log10() +
+  scale_y_discrete(labels = term_labels) +  # <--- change labels here
+  theme_minimal() +
+  labs(x = "Odds Ratio (95% CI)", y = NULL)
 
-  View(tidy_model)
-  
-}
+ggsave(paste(model_dir, "/forest_plot.svg", sep=""), plot = plot, width = 6, height = 4, dpi = 300)
+
+View(tidy_model)
 ```

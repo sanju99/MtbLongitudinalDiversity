@@ -70,10 +70,6 @@ if include_children:
 else:
     child_taxids = []
 
-# use the functionss to get all taxids
-parent_taxids = get_parent_taxids(taxid, parent_map)
-child_taxids = get_child_taxids(taxid, child_map)
-
 df_kraken_classifications = pd.read_csv(in_fName, sep='\t', header=None)
 df_kraken_classifications.columns = ['Classified', 'ReadName', 'TaxID', 'Length', 'LCA_kmers']
 

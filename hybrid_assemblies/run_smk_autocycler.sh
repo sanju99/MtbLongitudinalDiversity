@@ -49,5 +49,5 @@ snakemake --snakefile rules/run_autocycler.smk \
           --conda-frontend mamba \
           --resources mem_mb=100000 \
           --rerun-incomplete --keep-going \
-          --directory /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies
+          --directory /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies #--dry-run
           # --conda-create-envs-only #--conda-prefix /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda #--dry-run

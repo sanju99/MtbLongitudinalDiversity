@@ -1,6 +1,6 @@
 output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF"
 fastq_dir: "/n/data1/hms/dbmi/farhat/fastq_db/TRUST_Illumina/TRUST.SRWGS.FQs.AllSets.RenamedAndLanesMerged"
-isolates_to_run: "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/TRUST_samples_to_run.tsv"
+isolates_to_run: "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/TRUST_SR_samples.tsv"
 kraken_db: "/n/data1/hms/dbmi/farhat/mm774/References/Kraken2_DB_Dir/Kraken2_DB"
 scripts_dir: "./scripts"
 references_dir: "./references"

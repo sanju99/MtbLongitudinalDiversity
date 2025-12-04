@@ -1,0 +1,11 @@
+name: haplotype_phasing
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - minimap2
+  - longcallD
+  - samtools
+  - bcftools
+  - bedtools

@@ -4,6 +4,6 @@ H37rv_DnaA_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/re
 Kraken2_DB_PATH: "/n/data1/hms/dbmi/farhat/mm774/References/Kraken2_DB_Dir/Kraken2_DB"
 
 output_dir: "/n/data1/hms/dbmi/farhat/rollingDB/TRUST/PacBio_Illumina_hybridASM_autocycler"
-inputSampleData_TSV: "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/data/LR_SR_combined_data.tsv"
+inputSampleData: "/n/data1/hms/dbmi/farhat/rollingDB/TRUST/hybridASM_QC.csv"
 Illumina_FQ_DIR: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF"
 taxid: 77643

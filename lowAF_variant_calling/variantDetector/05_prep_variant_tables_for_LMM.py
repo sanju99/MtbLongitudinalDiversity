@@ -14,13 +14,20 @@ for i, row in h37Rv_regions.query("Functional_Category=='stable RNAs' & Feature=
     print(row['Name'])
     rRNA_pos += list(np.arange(row['Start'], row['Stop'] + 1))
     
+# remove insertion seqs and phages because too much short-read mismapping
+insertion_seqs_phages_pos = []
+
+for i, row in h37Rv_regions.query("Functional_Category=='insertion seqs and phages'").iterrows():
+    insertion_seqs_phages_pos += list(np.arange(row['Start'], row['Stop'] + 1))
+    
+insertion_seqs_phages_pos = np.unique(insertion_seqs_phages_pos)
+    
 parser = argparse.ArgumentParser()
 
 parser.add_argument("-o", dest='dir_name', type=str, required=True, help="Directory to write tables to. Will be created if it doesn't exist.")
 parser.add_argument("-d", "--H37Rv_ref_dir", type=str, default='/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF', help='Directory with Illumina samples aligned to H37Rv')
 parser.add_argument("-D", "--personal_ref_dir", type=str, default='/n/data1/hms/dbmi/farhat/Sanjana/TRUST_aln_personal_assembly', help='Directory with Illumina samples aligned to their own personal genomes')
 parser.add_argument("--F2_max", type=float, default=0.03, help='Maximum F2 (inclusive) to keep samples for')
-parser.add_argument("--clonal", action="store_true", help='By default, samples with F2 > F2_max are used for training, but not validation. If this flag is specified, only samples with F2 ≤ F2_max are used for training')
 parser.add_argument("--fixed_thresh", type=float, default=0.95, help='AF above which a variant is considered fixed')
 parser.add_argument("--patient_WGS_data", type=str, default='/home/sak0914/TRUST_data_processing/processed_data/combined_patient_WGS_data.csv', help='combined patient + WGS data to merge metadata in with')
 
@@ -29,19 +36,17 @@ model_dir = cmd_line_args.dir_name
 H37Rv_ref_dir = cmd_line_args.H37Rv_ref_dir
 personal_ref_dir = cmd_line_args.personal_ref_dir
 F2_max = cmd_line_args.F2_max
-clonal = cmd_line_args.clonal
+mixed = cmd_line_args.mixed
 fixed_thresh = cmd_line_args.fixed_thresh
 
 df_trust_patients = pd.read_csv(cmd_line_args.patient_WGS_data)
 
 ground_truth_samples = os.listdir(personal_ref_dir)
 
-num_ground_truth_samples = len(df_trust_patients.query("SampleID in @ground_truth_samples"))
-
-if clonal:
-    num_ground_truth_samples = len(df_trust_patients.query("F2 <= @F2_max & SampleID in @ground_truth_samples"))
+num_ground_truth_samples = len(df_trust_patients.query("SampleID in @ground_truth_samples & F2 <= @F2_max"))
 
 non_ground_truth_samples = set(os.listdir(H37Rv_ref_dir)) - set(ground_truth_samples)
+
 num_non_ground_truth_samples = len(df_trust_patients.query("F2 <= @F2_max & SampleID in @non_ground_truth_samples"))
 
 print(f"{num_ground_truth_samples} ground truth samples, {num_non_ground_truth_samples} validation samples")
@@ -80,29 +85,23 @@ def write_lowAF_variant_table(model_dir, fixed_thresh=0.95):
 
         match = re.search(r'MFS-\d{1,3}', fName)
 
-        df = pd.read_csv(fName).query("REF.str.len() == ALT.str.len()").query("POS not in @rRNA_pos")
+        df = pd.read_csv(fName).query("REF.str.len() == ALT.str.len()").query("POS not in @rRNA_pos & POS not in @insertion_seqs_phages_pos")
         df['SampleID'] = match.group()
         df_ground_truth.append(df)
 
-    df_ground_truth = pd.concat(df_ground_truth).merge(df_trust_patients[['pid', 'SampleID', 'Coll2014', 'Freschi2020', 'Lineage', 'F2']], on='SampleID', how='left')
-    
-    if clonal:
-        df_ground_truth = df_ground_truth.query("F2 <= @F2_max")
+    df_ground_truth = pd.concat(df_ground_truth).merge(df_trust_patients[['pid', 'SampleID', 'Coll2014', 'Freschi2020', 'Lineage', 'F2']], on='SampleID', how='left').query("F2 <= @F2_max")
     
     assert sum(pd.isnull(df_ground_truth['pid'])) == 0
     df_ground_truth['Real'] = 1
 
     # remove rRNA pos, which have too many false positives due to contamination
-    df_candidate_SNPs = df_candidate_SNPs.query("POS not in @rRNA_pos")
+    df_candidate_SNPs = df_candidate_SNPs.query("POS not in @rRNA_pos & POS not in @insertion_seqs_phages_pos")
     
     # weird characters in the columns
     df_candidate_SNPs.rename(columns={'ANN[0].GENE': 'GENE', 'ANN[0].HGVS_C': 'HGVS_C', 'ANN[0].HGVS_P': 'HGVS_P'}, inplace=True)
 
     # add pid
-    df_candidate_SNPs = df_candidate_SNPs.merge(df_trust_patients[['pid', 'SampleID', 'Coll2014', 'Freschi2020', 'Lineage', 'F2']], on='SampleID', how='left')
-    
-    if clonal:
-        df_candidate_SNPs = df_candidate_SNPs.query("F2 <= @F2_max")
+    df_candidate_SNPs = df_candidate_SNPs.merge(df_trust_patients[['pid', 'SampleID', 'Coll2014', 'Freschi2020', 'Lineage', 'F2']], on='SampleID', how='left').query("F2 <= @F2_max")
         
     assert sum(pd.isnull(df_candidate_SNPs['pid'])) == 0
     # df_candidate_SNPs['Lineage'] = df_candidate_SNPs['Lineage'].astype(int)
@@ -158,7 +157,7 @@ def write_lowAF_variant_table(model_dir, fixed_thresh=0.95):
     # make sure all numeric types
     df_candidate_SNPs_ground_truth[predictors + ['Real']] = df_candidate_SNPs_ground_truth[predictors + ['Real']].apply(pd.to_numeric, errors='coerce')
 
-    df_candidate_SNPs_ground_truth = df_candidate_SNPs_ground_truth.query("AF <= @fixed_thresh")#.drop_duplicates()
+    df_candidate_SNPs_ground_truth = df_candidate_SNPs_ground_truth.query("AF <= @fixed_thresh").drop_duplicates()
     
     print(f"{df_candidate_SNPs_ground_truth.SampleID.nunique()} training samples with {len(df_candidate_SNPs_ground_truth)} low-AF variants")
     print(df_candidate_SNPs_ground_truth.Real.value_counts())
@@ -166,7 +165,7 @@ def write_lowAF_variant_table(model_dir, fixed_thresh=0.95):
     df_candidate_SNPs_ground_truth.to_csv(f"{model_dir}/training_data.csv", index=False)
 
     # save all values to get predictions
-    df_val = df_val.query("AF <= @fixed_thresh").query("F2 <= @F2_max")#.drop_duplicates()
+    df_val = df_val.query("AF <= @fixed_thresh").query("F2 <= @F2_max").drop_duplicates()
     print(f"{df_val.SampleID.nunique()} validation samples with {len(df_val)} low-AF variants")
     
     df_val.to_csv(f"{model_dir}/validation_data.csv", index=False)
@@ -189,7 +188,7 @@ def write_fixed_variable_table(model_dir, fixed_thresh=0.95):
         df['SampleID'] = match.group()
         df_fixed_SNPs.append(df)
 
-    df_fixed_SNPs = pd.concat(df_fixed_SNPs).query("AF > @fixed_thresh").query("POS not in @rRNA_pos")
+    df_fixed_SNPs = pd.concat(df_fixed_SNPs).query("AF > @fixed_thresh").query("POS not in @rRNA_pos & POS not in @insertion_seqs_phages_pos")
 
     df_fixed_SNPs = df_fixed_SNPs.merge(df_trust_patients[['pid', 'SampleID', 'Coll2014', 'Freschi2020', 'Lineage', 'F2']], on='SampleID', how='left').query("F2 <= @F2_max")
     assert sum(pd.isnull(df_fixed_SNPs['pid'])) == 0

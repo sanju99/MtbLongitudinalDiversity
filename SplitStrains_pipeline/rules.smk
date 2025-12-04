@@ -12,14 +12,16 @@ rule run_split_strains:
     input:
         bam_file = f"{sample_out_dir}/bam/{{sample}}.dedup.bam",
     output:
-        result_file = f"{sample_out_dir}/bam/SplitStrains/{{sample}}.result.txt"
+        result_file = f"{sample_out_dir}/SplitStrains/{{sample}}.result.txt"
     params:
-        sample_out_dir = os.path.join(sample_out_dir, "bam", "SplitStrains"),
+        sample_out_dir = os.path.join(sample_out_dir, "SplitStrains"),
         splitStrains_directory = os.path.join(primary_directory, "SplitStrains"),
-    conda:
-        "/home/sak0914/anaconda3/envs/SplitStrains"
+    # conda:
+    #     "/home/sak0914/anaconda3/envs/SplitStrains"
     shell:
         """
+        source activate /home/sak0914/anaconda3/envs/SplitStrains
+        
         python3 -u {params.splitStrains_directory}/splitStrains.py \
                    {input.bam_file} \
                    -o {params.sample_out_dir} \

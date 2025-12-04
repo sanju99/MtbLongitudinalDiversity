@@ -606,26 +606,55 @@ rule pilon_variant_calling:
         vcf_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.vcf"),
         vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
         fasta_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.fasta"),        
-        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
-        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
         sample_pilon_dir = f"{sample_out_dir}/pilon",
     conda:
         f"{primary_directory}/envs/variant_calling.yaml"
     shell:
-        """
+        """        
         pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
             
         # left-align indels and split multi-allelics, then gzip the full VCF file 
         # this affects those cases where the position of the indel is ambiguous
         bcftools norm --multiallelics -both --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
-                        
+        """
+
+
+rule get_pilon_SNPs_indels:
+    input:
+        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
+    output:
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
+    conda:
+        f"{primary_directory}/envs/variant_calling.yaml"
+    shell:
+        """
         # save a VCF file of the SNP variants. Anything with BC >= 5 for at least 2 alleles       
-        bcftools filter -i '(strlen(REF) == strlen(ALT)) & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {output.vcf_file_gzip} > {output.vcf_SNPs}
+        bcftools filter -i '(strlen(REF) == strlen(ALT)) & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {input.vcf_file_gzip} > {output.vcf_SNPs}
         
         # indels won't be included, so save a separate file of indels, where IC >= 5 or DC >= 5
-        bcftools filter -i "(strlen(REF) != strlen(ALT)) & (IC >= 5 | DC >= 5)" {output.vcf_file_gzip} > {output.vcf_indels}
+        bcftools filter -i "(strlen(REF) != strlen(ALT)) & (IC >= 5 | DC >= 5)" {input.vcf_file_gzip} > {output.vcf_indels}
+        """
+
+
+
+rule get_PASS_Amb_VCFs:
+    input:
+        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
+    output:
+        vcf_file_bgzip = f"{sample_out_dir}/pilon/{{sample_ID}}.PASSorAmb.vcf.bgz",
+        vcf_file_bgzip_index = f"{sample_out_dir}/pilon/{{sample_ID}}.PASSorAmb.vcf.bgz.tbi",
+    conda:
+        "/home/sak0914/anaconda3/envs/MtbQuantCNN"
+    shell:
+        """
+        zcat {input.vcf_file_gzip} | \
+        awk 'BEGIN{{FS="\\t";OFS="\\t"}} /^#/ {{print; next}} $7=="PASS" || $7=="Amb" {{print}}' | \
+        bgzip > {output.vcf_file_bgzip} && \
+        
+        tabix -p vcf {output.vcf_file_bgzip} -f
         """
 
 
@@ -698,7 +727,7 @@ rule create_lineage_helper_files:
         """
 
 
-rule lineage_typing:
+rule calculate_strain_mixing:
     input:
         bcf_file = f"{sample_out_dir}/lineage/{{sample_ID}}.bcf",
         bcf_index_file = f"{sample_out_dir}/lineage/{{sample_ID}}.bcf.csi",
@@ -706,23 +735,77 @@ rule lineage_typing:
         vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
     params:
         lineage_SNP_info = os.path.join(primary_directory, references_dir, "phylogeny", "Coll2014_SNPs_all.csv"),
-        F2_metric_script = os.path.join(primary_directory, scripts_dir, "calculate_F2_metric.py"),
+        FN_metric_script = os.path.join(primary_directory, scripts_dir, "calculate_strain_mixing_VCF.py"),
         output_dir = output_dir,        
     output:
-        F2_metric_output = f"{sample_out_dir}/lineage/F2_Coll2014.txt",
-        minor_allele_fractions_output = temp(f"{sample_out_dir}/lineage/minor_allele_fractions.csv"),
-        
-        vcf_file_gunzip = temp(f"{sample_out_dir}/lineage/{{sample_ID}}_full.vcf"),
-        fast_lineage_caller_output = f"{sample_out_dir}/lineage/fast_lineage_caller_output.txt",
+        strain_mixing_table = f"{sample_out_dir}/lineage/mixing_scores_Coll2014.csv",
+        minor_allele_fractions_output = f"{sample_out_dir}/lineage/minor_allele_fractions.csv",        
     shell:
         """
-        python3 -u {params.F2_metric_script} -i {params.output_dir}/{wildcards.sample_ID} -o {output.F2_metric_output} -O {output.minor_allele_fractions_output} --lineage-file {params.lineage_SNP_info}
-
-        rm {input.bcf_file} {input.bcf_index_file} {input.vcf_lineage_positions}
+        python3 -u {params.FN_metric_script} -i {params.output_dir}/{wildcards.sample_ID} -o {output.minor_allele_fractions_output} --lineage-file {params.lineage_SNP_info} --num_max_mixed_lineages 3
         
+        rm {input.bcf_file} {input.bcf_index_file} {input.vcf_lineage_positions}        
+        """
+        
+        
+        
+rule lineage_typing:
+    input:
+        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
+    output:
+        vcf_file_gunzip = temp(f"{sample_out_dir}/lineage/{{sample_ID}}_full.vcf"),
+        fast_lineage_caller_output = f"{sample_out_dir}/lineage/fast_lineage_caller_output.txt",
+    params:
+        lineage_SNP_info = os.path.join(primary_directory, references_dir, "phylogeny", "Coll2014_SNPs_all.csv"),
+        F2_metric_script = os.path.join(primary_directory, scripts_dir, "calculate_strain_mixing_VCF.py"),
+        output_dir = output_dir,   
+    shell:
+        """
         # fast-lineage-caller won't work on gzipped files, so need to unzip it first. 
         # It doesn't even error when you pass in a gzipped file. It just returns nothing, making debugging difficult
         gunzip -c {input.vcf_file_gzip} > {output.vcf_file_gunzip}
-
+        
         fast-lineage-caller {output.vcf_file_gunzip} --pass --out {output.fast_lineage_caller_output}
+        """
+        
+        
+        
+rule generate_VCF_for_TBtypeR:
+    input:
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+    output:
+        tbtypeR_VCF_file_init = temp(f"{sample_out_dir}/TBtypeR/{{sample_ID}}.vcf"),
+        tbtypeR_VCF_file = f"{sample_out_dir}/TBtypeR/{{sample_ID}}.vcf.gz",
+    conda:
+        f"{primary_directory}/envs/variant_calling.yaml"
+    params:
+        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+        tbtypeR_targets = "/home/sak0914/MtbLongitudinalDiversity/direct_sputum/tbtyper_targets_Chromosome.tsv"
+    threads:
+        8
+    shell:
+        """
+        bcftools mpileup {input.merged_bam_file} -q 1 -Q 10 -d 1000 -f {params.ref_genome} -a FMT/AD -Ou --threads {threads} \
+          | bcftools call --ploidy 1 -A -m --prior 1e-2 -C alleles -T {params.tbtypeR_targets} -Ou --threads {threads} \
+          | bcftools annotate -x INFO,^FORMAT/GT,^FORMAT/AD -Ov -o {output.tbtypeR_VCF_file_init} --threads {threads}
+          
+        # rename Chromosome to NC_000962.3 for compatibility
+        sed 's/Chromosome/NC_000962.3/g' {output.tbtypeR_VCF_file_init} | gzip -c > {output.tbtypeR_VCF_file}
+        """
+        
+        
+        
+rule remove_low_quality_sites_TBtypeR_VCF:
+    input:
+        tbtypeR_VCF_file = f"{sample_out_dir}/TBtypeR/{{sample_ID}}.vcf.gz",
+    output:
+        tbtypeR_VCF_file_filtered = f"{sample_out_dir}/TBtypeR/{{sample_ID}}.filtered.vcf.gz",
+    conda:
+        f"{primary_directory}/envs/variant_calling.yaml"
+    params:
+        exclude_low_mappability_regions = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/BED_files/exclude_regions_50bp.EBRlessThan95Percent_refseq.bed",
+        exclude_low_quality_unfixed_SNV_sites = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/BED_files/exclude_unfixed_SNV_sites.bed",
+    shell:
+        """
+        bedtools subtract -a {input.tbtypeR_VCF_file} -b {params.exclude_low_mappability_regions} -header | bedtools subtract -a '-' -b {params.exclude_low_quality_unfixed_SNV_sites} -header | bcftools sort | gzip -c > {output.tbtypeR_VCF_file_filtered}
         """

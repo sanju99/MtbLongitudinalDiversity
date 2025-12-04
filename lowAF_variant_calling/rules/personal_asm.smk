@@ -14,161 +14,6 @@ primary_directory = os.getcwd()
 sample_H37Rv_ref_dir = f"/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF/{{sample_ID}}"
 
 
-rule get_input_FASTQ_files:
-    group: 
-        "sequential"
-    output:
-        fastq1 = f"{sample_out_dir}/{{sample_ID}}_R1.fastq.gz",
-        fastq2 = f"{sample_out_dir}/{{sample_ID}}_R2.fastq.gz",
-
-        fastq1_unzipped = temp(f"{sample_out_dir}/{{sample_ID}}_1.fastq"),
-        fastq2_unzipped = temp(f"{sample_out_dir}/{{sample_ID}}_2.fastq"),
-    params:
-        sample_out_dir = sample_out_dir,
-        fastq_dir = config["fastq_dir"],
-        download_script = f"{primary_directory}/scripts/download_FASTQ.sh",
-    shell:        
-        """
-        # copy the FASTQ files from the directory specified in the config file to the sample directory
-        # they will be deleted in the next rule after performing adapter trimming, so they won't be doubly stored
-        cp {params.fastq_dir}/{wildcards.sample_ID}/{wildcards.sample_ID}_R1.fastq.gz {output.fastq1}
-        cp {params.fastq_dir}/{wildcards.sample_ID}/{wildcards.sample_ID}_R2.fastq.gz {output.fastq2}
-
-        gunzip -c {output.fastq1} > {output.fastq1_unzipped}
-        gunzip -c {output.fastq2} > {output.fastq2_unzipped}
-
-        # first check that the original FASTQ files have the same numbers of lines
-        FQ1_line_count=$(wc -l {output.fastq1_unzipped} | awk '{{print $1}}')
-        FQ2_line_count=$(wc -l {output.fastq2_unzipped} | awk '{{print $1}}')
-
-        # check that neither FASTQ file has no reads
-        if [ $FQ1_line_count -eq 0 ] || [ $FQ2_line_count -eq 0 ]; then
-            echo "Error: At least one of the FASTQ files for $sample_ID/$sample_ID has no reads"
-            exit 1
-        # Compare the counts and raise an error if they are not equal 
-        elif [ "$FQ1_line_count" -ne "$FQ2_line_count" ]; then
-            echo "Error: FASTQ files for $sample_ID/$sample_ID have different line counts: $FQ1_line_count and $FQ2_line_count"
-            exit 1
-        fi
-
-        # compare paired end read files. If they are the same, then add to error list. Suppress output with -s tag, so it doesn't print out the differences
-        # If the files are identical, the exit status is 0, and the condition is considered true, so an error will be returned.
-        if cmp -s {output.fastq1_unzipped} {output.fastq2_unzipped}; then
-           echo "Error: {output.fastq1_unzipped} and {output.fastq2_unzipped} are duplicates"
-           exit 1
-        fi
-        """
-
-
-rule trim_adapters:
-    input:
-        fastq1 = f"{sample_out_dir}/{{sample_ID}}_R1.fastq.gz",
-        fastq2 = f"{sample_out_dir}/{{sample_ID}}_R2.fastq.gz",
-    output:
-        fastq1_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R1.trimmed.fastq.gz",
-        fastq2_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R2.trimmed.fastq.gz",
-        fastp_html = f"{sample_out_dir}/fastp/fastp.html",
-        fastp_json = f"{sample_out_dir}/fastp/fastp.json"
-    conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
-        # "/home/sak0914/Mtb_Megapipe/.snakemake/conda/73c414a0fdfb349af0d394f0508ea848_"
-    params:
-        min_read_length = config["min_read_length"]
-    threads:
-        8
-    shell:
-        """
-        fastp -i {input.fastq1} -I {input.fastq2} \
-              -o {output.fastq1_trimmed} -O {output.fastq2_trimmed} \
-              -h {output.fastp_html} \
-              -j {output.fastp_json} \
-              --length_required {params.min_read_length} \
-              --dedup \
-              --thread {threads}
-
-        rm {input.fastq1} {input.fastq2}
-        """
-
-
-rule kraken_classification:
-    input:
-        fastq1_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R1.trimmed.fastq.gz",
-        fastq2_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R2.trimmed.fastq.gz",
-    output:
-        kraken_report = f"{sample_out_dir}/kraken/kraken_report_standard_DB.txt",
-        kraken_classifications = f"{sample_out_dir}/kraken/kraken_classifications_standard_DB",
-    conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
-        # "/home/sak0914/Mtb_Megapipe/.snakemake/conda/73c414a0fdfb349af0d394f0508ea848_"
-    params:
-        kraken_db = config['kraken_db'],
-        output_dir = output_dir,
-    threads:
-        8
-    shell:
-        """
-        # --confidence is the minimum fraction of k-mers in a read that must match a given taxon for that read to be assigned to that taxon
-        kraken2 --db {params.kraken_db} \
-                --threads {threads} \
-                --confidence 0 \
-                --paired {input.fastq1_trimmed} {input.fastq2_trimmed} \
-                --gzip-compressed \
-                --report {output.kraken_report} \
-                --output {output.kraken_classifications} \
-                --memory-mapping
-        """
-        
-        
-        
-rule extract_kraken_read_names:
-    input:
-        kraken_classifications = f"{sample_out_dir}/kraken/kraken_classifications_standard_DB",
-    output:  
-        kraken_classifications_gzipped = f"{sample_out_dir}/kraken/kraken_classifications_standard_DB.csv.gz", # gets gzipped by the python script. Did this to add headers
-        keep_read_names = f"{sample_out_dir}/kraken/keep_read_names.txt"
-    params:
-        kraken_db = config['kraken_db'],
-        extract_kraken_reads_script = os.path.join(primary_directory, scripts_dir, "extract_kraken_read_names.py"),
-        taxid = config['taxid'],
-    shell:
-        """
-        python3 -u {params.extract_kraken_reads_script} \
-                -t {params.taxid} \
-                -d {params.kraken_db} \
-                -i {input.kraken_classifications} \
-                -o {output.keep_read_names} \
-                --include-children \
-                --include-parents
-                
-        rm {input.kraken_classifications}
-        """
-
-
-
-rule extract_kraken_reads:
-    input:
-        fastq1_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R1.trimmed.fastq.gz",
-        fastq2_trimmed = f"{sample_out_dir}/fastp/{{sample_ID}}.R2.trimmed.fastq.gz",
-        keep_read_names = f"{sample_out_dir}/kraken/keep_read_names.txt"
-    output:
-        fastq1_trimmed_classified = f"{sample_out_dir}/kraken/{{sample_ID}}.R1.kraken.filtered.fastq.gz",
-        fastq2_trimmed_classified = f"{sample_out_dir}/kraken/{{sample_ID}}.R2.kraken.filtered.fastq.gz",    
-    conda:
-        f"{conda_directory}/envs/read_processing_aln_bwa.yaml"
-        # "/home/sak0914/Mtb_Megapipe/.snakemake/conda/73c414a0fdfb349af0d394f0508ea848_"
-    shell:
-        """
-        # seqtk will write outputs to unzipped files, even if the input was compressed
-        seqtk subseq {input.fastq1_trimmed} {input.keep_read_names} | gzip -c > {output.fastq1_trimmed_classified} 
-        seqtk subseq {input.fastq2_trimmed} {input.keep_read_names} | gzip -c > {output.fastq2_trimmed_classified} 
-        
-        rm {input.fastq1_trimmed} {input.fastq2_trimmed}
-        
-        gzip {input.keep_read_names}
-        """
-        
-
-
 rule align_reads_mark_duplicates:
     input:
         fastq1_trimmed_classified = f"{sample_H37Rv_ref_dir}/{{sample_ID}}/kraken/{{sample_ID}}.R1.kraken.filtered.fastq.gz",
@@ -442,11 +287,65 @@ rule liftoff_genes_from_H37Rv:
     #     f"{conda_directory}/envs/liftover.yaml"
     shell:
         """        
-        source activate liftoff
+        source activate /home/sak0914/anaconda3/envs/liftoff
         
         liftoff -g {params.H37Rv_gff_file} \
                 -o {output.liftoff_gff_file} \
                 -copies -polish \
                 -dir {output.liftoff_intermediate_dir} \
                 {input.ref_genome} {params.H37Rv_genome}
+        """
+        
+        
+        
+rule align_PB_reads_to_H37Rv:
+    input:
+        PB_reads_fq = lambda wildcards: sample_PB_dict[wildcards.sample_ID]
+    output:
+        BAM_file = f"{sample_out_dir}/SV_detection/{{sample_ID}}.bam",
+        BAM_index_file = f"{sample_out_dir}/SV_detection/{{sample_ID}}.bam.bai",
+    params:
+        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/SV_detection
+        
+        minimap2 -ax map-hifi {params.H37Rv_genome} {input.PB_reads_fq} | samtools sort > {output.BAM_file}
+        
+        samtools index {output.BAM_file}
+        """
+
+
+
+rule call_SVs_sniffles:
+    input:
+        BAM_file = f"{sample_out_dir}/SV_detection/{{sample_ID}}.bam",
+        BAM_index_file = f"{sample_out_dir}/SV_detection/{{sample_ID}}.bam.bai",
+    output:
+        SV_VCF = f"{sample_out_dir}/SV_detection/{{sample_ID}}.noQC.vcf",
+    params:
+        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/SV_detection
+        
+        sniffles -i {input.BAM_file} -v {output.SV_VCF} --reference {params.H37Rv_genome} --allow-overwrite --no-qc
+        """
+        
+        
+rule normalize_SVs_write_TSV:
+    input:
+        SV_VCF = f"{sample_out_dir}/SV_detection/{{sample_ID}}.noQC.vcf",
+    output:
+        norm_SV_VCF = f"{sample_out_dir}/SV_detection/{{sample_ID}}.noQC.norm.vcf",
+        norm_SV_TSV = f"{sample_out_dir}/SV_detection/{{sample_ID}}.noQC.norm.tsv",
+    params:
+        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
+    shell:
+        """
+        source activate /home/sak0914/Mtb_Megapipe/.snakemake/conda/a127fe87b4a6b9a6a5f6a81ead3133a8_
+        
+        bcftools norm --rm-dup none --fasta-ref {params.H37Rv_genome} {input.SV_VCF} | bcftools sort > {output.norm_SV_VCF}
+        
+        SnpSift extractFields {output.norm_SV_VCF} POS REF ALT QUAL FILTER SVTYPE SVLEN END COVERAGE VAF -e "" > {output.norm_SV_TSV}
         """

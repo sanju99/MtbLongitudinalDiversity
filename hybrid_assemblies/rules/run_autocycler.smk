@@ -16,10 +16,10 @@ output_dir = config["output_dir"]
 primary_directory = "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies"
 
 # Read in data regarding input 
-input_DataInfo_DF = pd.read_csv( config["inputSampleData_TSV"], sep='\t')
+input_DataInfo_DF = pd.read_csv( config["inputSampleData"])
 
 # drop samples that don't have an original ID (SNNN-NN type ID)
-input_DataInfo_DF = input_DataInfo_DF.dropna(subset=['Original_ID', 'PacBio_FQ_PATH', 'Illumina_FQ_PATH']).reset_index(drop=True)
+input_DataInfo_DF = input_DataInfo_DF.dropna(subset=['Original_ID', 'PacBio_FQ_PATH', 'Illumina_ID']).reset_index(drop=True)
 
 input_All_SampleIDs = list( input_DataInfo_DF["Original_ID"].values )
 
@@ -28,7 +28,8 @@ Illumina_MFS_to_Original_ID_Dict = dict(input_DataInfo_DF[["Original_ID", "Illum
 
 rule all:
     input:
-        [f"{output_dir}/{sample}/autocycler_out/circlator/consensus_assembly.fasta" for sample in input_All_SampleIDs],
+        [f"{output_dir}/{sample}/autocycler_metrics.tsv" for sample in input_All_SampleIDs],
+        # [f"{output_dir}/{sample}/autocycler_out/circlator/consensus_assembly.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/PB/Flye_Assembly/assembly.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/PB/Flye_Assembly_RenamedAndLengthFiltered/{sample}.flyeassembly.I3.Renamed.100Kb.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/IlluminaWGS/Kraken2/{sample}.R{num}.kraken.filtered.fastq.gz" for sample in input_All_SampleIDs for num in [1, 2]],

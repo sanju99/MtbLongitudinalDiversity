@@ -26,5 +26,9 @@ rule all:
     input:
         # [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.excludeLowConf.split.fixedAO.final.tsv" for sample_ID in df_samples_runs[0].values],
         # [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.init.allHaps.vcf" for sample_ID in df_samples_runs[0].values],
-        [f"{output_dir}/{sample_ID}/freebayes/lowAF_SNPs.csv" for sample_ID in df_samples_runs[0].values],
-        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_indels.excludeLowConf.tsv" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/freebayes/lowAF_SNPs.csv" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_SNPs.vcf" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}.PASSorAmb.vcf.bgz.tbi" for sample_ID in df_samples_runs[0].values],
+        [f"{output_dir}/{sample_ID}/TBtypeR/{sample_ID}.filtered.vcf.gz" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/lineage/mixing_scores_Coll2014.csv" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/lineage/fast_lineage_caller_output.txt" for sample_ID in df_samples_runs[0].values],
