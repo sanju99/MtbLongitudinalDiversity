@@ -22,9 +22,9 @@ rule align_reads_mark_duplicates:
         sam_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.sam"),
         bam_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.bam"),
         bam_index_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.bam.bai"),
-        bam_file_markdup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
-        bam_file_markdup_metrics = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.metrics",
-        bam_index_file_markdup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.bai",
+        bam_file_markDup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
+        bam_file_markDup_metrics = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.metrics",
+        bam_index_file_markDup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.bai",
     params:
         output_dir = output_dir,
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
@@ -54,10 +54,10 @@ rule align_reads_mark_duplicates:
         samtools index {output.bam_file}
 
         # -Xmx6g specifies to allocate 6 GB
-        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_markdup} REMOVE_DUPLICATES=false M={output.bam_file_markdup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
+        picard -Xmx10g markDuplicates I={output.bam_file} O={output.bam_file_markDup} REMOVE_DUPLICATES=false M={output.bam_file_markDup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
 
-        # index the deduplicated alignment with samtools, which will create a dedup_bam_file.bai file
-        samtools index {output.bam_file_markdup}
+        # index the markDuplicated alignment with samtools, which will create a markDup_bam_file.bai file
+        samtools index {output.bam_file_markDup}
         """
 
         
@@ -65,12 +65,12 @@ rule align_reads_mark_duplicates:
 
 rule get_BAM_file_depths:
     input:
-        bam_file_markdup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
+        bam_file_markDup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
     params:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
         sample_out_dir = sample_out_dir,
     output:
-        depth_file = temp(f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz"),
+        depth_file = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz",
     conda:
         f"{conda_directory}/envs/read_processing_aln.yaml"
     shell:
@@ -78,7 +78,7 @@ rule get_BAM_file_depths:
         # get all runs associated with this sample_ID and compute depth
         # -a computes depth at all positions, not just those with non-zero depth
         # -Q is for minimum mapping quality: use 1, so that multiply mapped reads aren't counted. These have mapping quality of 0
-        samtools depth -a -Q 1 {input.bam_file_markdup} | gzip -c > {output.depth_file}
+        samtools depth -a -Q 1 {input.bam_file_markDup} | gzip -c > {output.depth_file}
         """
 
 
@@ -86,35 +86,47 @@ rule get_BAM_file_depths:
 
 rule pilon_variant_calling:
     input:
-        bam_file_markdup = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
     output:
         vcf_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.vcf"),
         vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
-        fasta_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.fasta"),
-        variants_vcf_file = f"{sample_out_dir}/pilon/{{sample_ID}}_variants.vcf",
+        fasta_file = temp(f"{sample_out_dir}/pilon/{{sample_ID}}.fasta"),        
     params:
         ref_genome = lambda w: sample_asm_dict[w.sample_ID],
         sample_pilon_dir = f"{sample_out_dir}/pilon",
     conda:
-        f"{conda_directory}/envs/variant_calling.yaml"
+        f"{primary_directory}/envs/variant_calling.yaml"
+    shell:
+        """        
+        pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
+            
+        # left-align indels and split multi-allelics, then gzip the full VCF file 
+        # this affects those cases where the position of the indel is ambiguous
+        bcftools norm --multiallelics -both --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
+        """
+
+
+
+rule get_pilon_SNPs_indels:
+    input:
+        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
+    output:
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
+    conda:
+        f"{primary_directory}/envs/variant_calling.yaml"
     shell:
         """
-        pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.bam_file_markdup} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
-            
-        # left-align indels and drop duplicates, then gzip the full VCF file 
-        # this affects those cases where the position of the indel is ambiguous
-        # however, because of the shifting positions, the position of the indel can change, so need to sort it
-        bcftools norm --rm-dup none --fasta-ref {params.ref_genome} {output.vcf_file} | bcftools sort | gzip -c > {output.vcf_file_gzip}
-        
-        # save a VCF file of the variants
-        # bcftools view --types snps,mnps,indels,other {output.vcf_file_gzip} > {output.variants_vcf_file}
-        
-        # this requires that BC ≥ 5 for a non-REF allele. The order of values in BC is A,C,G,T
-        bcftools filter -i '((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {output.vcf_file_gzip} > {output.variants_vcf_file}
+        # save a VCF file of the SNP variants. Anything with BC >= 5 for at least 2 alleles               
+        # need to include ALT == '.' because if ALT = '.' (meaning REF and ALT are the same), it does not treat . as length 1. It's probably length 0. So you will miss low AF things.
+        bcftools filter -i '(strlen(REF) == strlen(ALT) || ALT == ".") & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {input.vcf_file_gzip} > {output.vcf_SNPs}
+
+        # indels won't be included, so save a separate file of indels, where IC >= 5 or DC >= 5
+        bcftools filter -i "(strlen(REF) != strlen(ALT) || ALT == '.') & (IC >= 5 | DC >= 5)" {input.vcf_file_gzip} > {output.vcf_indels}
         """
 
-        
 
+        
 
 rule freebayes_variant_calling:
     input:
@@ -159,7 +171,7 @@ rule freebayes_VCF_normalization_decomposition:
         f"{conda_directory}/envs/variant_normalization.yaml"
     shell:
         """
-        # left-align indels and split multiallelics after decomposing variants above
+        # left-align indels and decompose complex variants above
         bcftools norm --multiallelics -both {input.vcf_file_init} --fasta-ref {params.ref_genome} > {output.vcf_file_split}
         
         vcfwave {output.vcf_file_split} | bcftools sort > {output.vcf_file}
@@ -213,17 +225,86 @@ rule filter_high_quality_lowAF_variants:
                 -o {output.lowAF_variants_bed_file} \
                 -g {params.ref_genome}
         """
+        
+        
+        
+        
+rule filter_pilon_high_quality_lowAF_SNVs:
+    input:
+        bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
+        depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz",
+        pilon_VCF_file = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+    output:
+        lowAF_SNVs_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.bed",
+    params:
+        ref_genome = lambda w: sample_asm_dict[w.sample_ID],
+        output_dir = sample_out_dir,
+    # conda:
+    #     f"{conda_directory}/envs/python_bioinformatics_utils.yaml"
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils 
+        
+        # this scripts writes the lowAF variants BED file. The variants are in the coordinates of the personal ref genome
+        # the next step will be to run paftools liftover to transfer the coordinates to H37Rv for easy comparison
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/pilonVariantDetector/01_write_lowAF_BED.py \
+                -v {input.pilon_VCF_file} \
+                -b {input.bam_file} \
+                -d {input.depth_file_gzip} \
+                -o {output.lowAF_SNVs_bed_file} \
+                -g {params.ref_genome} \
+                --BED
+        """
 
         
+        
+rule generate_paf_file:
+    output:
+        personal_H37Rv_paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
+    conda:
+        f"{conda_directory}/envs/long_read_aln.yaml"
+    params:
+        ref_genome = lambda w: sample_asm_dict[w.sample_ID],
+        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
+    shell:
+        """
+        # generate paf file. Target = H37Rv first, then query = personal genome second
+        minimap2 -x asm5 -c --cs {params.H37Rv_genome} {params.ref_genome} --secondary=no > {output.personal_H37Rv_paf_file}
+        """
+       
         
         
 rule transfer_lowAF_variants_to_H37Rv_coordinates:
     input:
         lowAF_variants_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.bed",
-    output:
         personal_H37Rv_paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
+    output:
         lowAF_variants_H37Rv_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.bed",
         lowAF_variants_H37Rv_excludeLowConf_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.excludeLowConf.bed",
+    conda:
+        f"{conda_directory}/envs/long_read_aln.yaml"
+    params:
+        ref_genome = lambda w: sample_asm_dict[w.sample_ID],
+        H37Rv_genome = os.path.join(primary_directory, "references", "ref_genome", "H37Rv_NC_000962.3.fna"),
+        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
+    shell:
+        """ 
+        # transfer lowAF variants from personal to H37Rv coordinates
+        paftools.js liftover {input.personal_H37Rv_paf_file} {input.lowAF_variants_bed_file} > {output.lowAF_variants_H37Rv_bed_file}
+        
+        # finally remove the low confidence variants now that we have the variants in H37Rv coordinates
+        bedtools subtract -a {output.lowAF_variants_H37Rv_bed_file} -b {params.exclude_regions} -header > {output.lowAF_variants_H37Rv_excludeLowConf_bed_file}
+        """
+        
+        
+        
+rule transfer_pilon_lowAF_SNVs_to_H37Rv_coordinates:
+    input:
+        lowAF_SNVs_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.bed",
+    output:
+        personal_H37Rv_paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
+        lowAF_SNVs_H37Rv_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.H37Rv.bed",
+        lowAF_SNVs_H37Rv_excludeLowConf_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.H37Rv.excludeLowConf.bed",
     conda:
         f"{conda_directory}/envs/long_read_aln.yaml"
     params:
@@ -236,13 +317,11 @@ rule transfer_lowAF_variants_to_H37Rv_coordinates:
         minimap2 -x asm5 -c --cs {params.H37Rv_genome} {params.ref_genome} --secondary=no > {output.personal_H37Rv_paf_file}
         
         # transfer lowAF variants from personal to H37Rv coordinates
-        paftools.js liftover {output.personal_H37Rv_paf_file} {input.lowAF_variants_bed_file} > {output.lowAF_variants_H37Rv_bed_file}
+        paftools.js liftover {output.personal_H37Rv_paf_file} {input.lowAF_SNVs_bed_file} > {output.lowAF_SNVs_H37Rv_bed_file}
         
         # finally remove the low confidence variants now that we have the variants in H37Rv coordinates
-        bedtools subtract -a {output.lowAF_variants_H37Rv_bed_file} -b {params.exclude_regions} -header > {output.lowAF_variants_H37Rv_excludeLowConf_bed_file}
+        bedtools subtract -a {output.lowAF_SNVs_H37Rv_bed_file} -b {params.exclude_regions} -header > {output.lowAF_SNVs_H37Rv_excludeLowConf_bed_file}
         """
-        
-        
         
         
 
@@ -250,7 +329,7 @@ rule merge_results_H37Rv_personal_genome_calling:
     input:
         lowAF_variants_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.bed",
         lowAF_variants_transferred_to_H37Rv_excludeLowConf_bed_file = f"{sample_out_dir}/freebayes/lowAF_variants.H37Rv.excludeLowConf.bed",
-        lowAF_variants_H37Rv_excludeLowConf_tsv_file = f"{sample_H37Rv_ref_dir}/freebayes/{{sample_ID}}.excludeLowConf.tsv",
+        lowAF_variants_H37Rv_excludeLowConf_tsv_file = f"{sample_H37Rv_ref_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.tsv",
     output:
         f"{sample_out_dir}/lowAF_comparison/ground_truth.csv",
         f"{sample_out_dir}/lowAF_comparison/H37Rv_detected.csv",
@@ -269,6 +348,35 @@ rule merge_results_H37Rv_personal_genome_calling:
                 -bed2 {input.lowAF_variants_transferred_to_H37Rv_excludeLowConf_bed_file} \
                 -tsv {input.lowAF_variants_H37Rv_excludeLowConf_tsv_file}
         """
+        
+        
+        
+        
+rule merge_results_H37Rv_personal_genome_calling_pilon:
+    input:
+        lowAF_SNVs_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.bed",
+        lowAF_SNVs_transferred_to_H37Rv_excludeLowConf_bed_file = f"{sample_out_dir}/pilon/lowAF_SNVs.H37Rv.excludeLowConf.bed",
+        lowAF_SNVs_H37Rv_excludeLowConf_tsv_file = f"{sample_H37Rv_ref_dir}/pilon/lowAF_SNVs.csv",
+    output:
+        f"{sample_out_dir}/pilon/ground_truth.csv",
+        f"{sample_out_dir}/pilon/H37Rv_detected.csv",
+        f"{sample_out_dir}/pilon/confusion_matrix.csv",
+    params:
+        sample_ID = f"{{sample_ID}}",
+    # conda:
+    #    f"{conda_directory}/envs/python_bioinformatics_utils.yaml"
+    shell:
+        """ 
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
+        
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/pilonVariantDetector/02_combine_lowAF_SNVs.py \
+                -s {params.sample_ID} \
+                -bed1 {input.lowAF_SNVs_bed_file} \
+                -bed2 {input.lowAF_SNVs_transferred_to_H37Rv_excludeLowConf_bed_file} \
+                -csv {input.lowAF_SNVs_H37Rv_excludeLowConf_tsv_file}
+        """
+        
+        
              
         
 rule liftoff_genes_from_H37Rv:

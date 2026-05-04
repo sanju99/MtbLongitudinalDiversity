@@ -6,8 +6,8 @@ scripts_dir: "./scripts"
 references_dir: "./references"
 min_read_length: 50
 median_depth: 15
-min_cov: 20
-genome_cov_prop: 0.95
+min_cov: 1 #20
+genome_cov_prop: 0.1 #0.95
 annot_VCF_name: "./VCFs_to_annot.txt"
 snpEff_db: "Mycobacterium_tuberculosis_h37rv"
 taxid: 77643

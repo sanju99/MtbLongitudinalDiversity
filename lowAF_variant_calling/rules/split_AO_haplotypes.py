@@ -74,7 +74,6 @@ def fix_AO_split_haplotypes(in_vcf, out_vcf):
         depth = record.info['DP']
         ao = record.info['AO']
         mqm = record.info['MQM']
-        meanAlt = record.info['MEANALT']
         saf = record.info['SAF']
         sar = record.info['SAR']
 
@@ -121,13 +120,11 @@ def fix_AO_split_haplotypes(in_vcf, out_vcf):
             if keep_idx is not None:
                 new.info['AO'] = int(np.sum(np.array(ao)[keep_idx]))
                 new.info['MQM'] = np.sum(np.array(mqm)[keep_idx])
-                new.info['MEANALT'] = np.sum(np.array(meanAlt)[keep_idx])
                 new.info['SAF'] = int(np.sum(np.array(saf)[keep_idx]))
                 new.info['SAR'] = int(np.sum(np.array(sar)[keep_idx]))
             else:
                 new.info['AO'] = 0
                 new.info['MQM'] = 0
-                new.info['MEANALT'] = 0
                 new.info['SAF'] = 0
                 new.info['SAR'] = 0
 

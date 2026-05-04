@@ -31,7 +31,7 @@ rule get_input_FASTQ_files:
     run:        
         if download_public_FASTQ_dict[wildcards.sample_ID] == 1:
             shell("""
-                module load sratoolkit/2.10.7
+                module load sratoolkit/3.2.0
 
                 # the script performs the same QC as in the next block
                 bash {params.download_script} {params.sample_out_dir} {wildcards.run_ID}
@@ -69,6 +69,22 @@ rule get_input_FASTQ_files:
             """)
 
 
+
+rule repair_reads_bbmap:
+    input:
+        fastq1 = f"{run_out_dir}/{{run_ID}}_R1.fastq.gz",
+        fastq2 = f"{run_out_dir}/{{run_ID}}_R2.fastq.gz",
+    output:
+        fastq1_fixed=f"{run_out_dir}/{{run_ID}}.R1.fixed.fastq",
+        fastq2_fixed=f"{run_out_dir}/{{run_ID}}.R2.fixed.fastq",
+    conda:
+        "./envs/bioinformatics.yaml"
+    shell:
+        """
+        bash $CONDA_PREFIX/bin/repair.sh in={input.fastq1} in2={input.fastq2} out={output.fastq1_fixed} out2={output.fastq2_fixed}
+        """
+        
+        
 rule trim_adapters:
     input:
         fastq1 = f"{run_out_dir}/{{run_ID}}_R1.fastq.gz",
@@ -201,15 +217,15 @@ rule fastlin_typing:
 
 rule align_reads_mark_duplicates:
     input:
-        fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R1.kraken.filtered.fastq",
-        fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R2.kraken.filtered.fastq",  
+        fastq1_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R1.kraken.filtered.fastq.gz",
+        fastq2_trimmed_classified = f"{run_out_dir}/kraken/{{run_ID}}.R2.kraken.filtered.fastq.gz",  
     output:
         sam_file = temp(f"{run_out_dir}/bam/{{run_ID}}.sam"),
         bam_file = temp(f"{run_out_dir}/bam/{{run_ID}}.bam"),
         bam_index_file = temp(f"{run_out_dir}/bam/{{run_ID}}.bam.bai"),
-        bam_file_markdup = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam",
-        bam_file_markdup_metrics = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam.metrics",
-        bam_index_file_dedup = f"{run_out_dir}/bam/{{run_ID}}.markDup.bam.bai",
+        bam_file_markdup = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam",
+        bam_file_markdup_metrics = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam.metrics",
+        bam_index_file_dedup = f"{run_out_dir}/bam/{{run_ID}}.dedup.bam.bai",
     params:
         output_dir = output_dir,
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
@@ -234,7 +250,7 @@ rule align_reads_mark_duplicates:
         samtools index {output.bam_file}
 
         # -Xmx6g specifies to allocate 6 GB
-        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_markdup} REMOVE_DUPLICATES=false M={output.bam_file_markdup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
+        picard -Xmx10g MarkDuplicates I={output.bam_file} O={output.bam_file_markdup} REMOVE_DUPLICATES=true M={output.bam_file_markdup_metrics} ASSUME_SORT_ORDER=coordinate READ_NAME_REGEX='(?:.*.)?([0-9]+)[^.]*.([0-9]+)[^.]*.([0-9]+)[^.]*$'
 
         # index the deduplicated alignment with samtools, which will create a dedup_bam_file.bai file
         samtools index {output.bam_file_markdup}
@@ -244,7 +260,7 @@ rule align_reads_mark_duplicates:
 
 rule get_BAM_file_depths:
     input:
-        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.markDup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
+        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.dedup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
     params:
         ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
         sample_out_dir = sample_out_dir,
@@ -280,7 +296,7 @@ rule get_BAM_file_depths:
 rule get_BAMs_passing_QC_thresholds:
     input:
         depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz", # contains depths for all BAM files for all WGS runs
-        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.markDup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
+        bam_file_markdup = lambda wildcards: [f"{output_dir}/{wildcards.sample_ID}/{run_ID}/bam/{run_ID}.dedup.bam" for run_ID in sample_run_dict[wildcards.sample_ID]],
     output:
         pass_BAMs_file = f"{sample_out_dir}/bam/pass_BAMs.txt",
     params:
@@ -301,8 +317,8 @@ rule merge_BAMs:
     input:
         pass_BAMs_file = f"{sample_out_dir}/bam/pass_BAMs.txt",
     output:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam",
-        merged_bam_index_file = f"{sample_out_dir}/bam/{{sample_ID}}.markDup.bam.bai",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+        merged_bam_index_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam.bai",
     conda:
         f"{conda_directory}/envs/read_processing_aln.yaml"
     params:
@@ -343,32 +359,71 @@ rule merge_BAMs:
         
         
         
-rule freebayes_variant_calling:
+rule convert_CRAM_to_BAM:
     input:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+        cram_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.cram",
     output:
-        vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf",
-    params:
-        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+        bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
     conda:
-        f"{conda_directory}/envs/variant_calling.yaml"
+        f"{primary_directory}/envs/read_processing_aln.yaml"
     shell:
+        """        
+        # determine the appropriate FASTA file by getting the name of the reference chromosome used for alignment
+        chrom_name=$(samtools idxstats {input.cram_file}  | cut -f1 | head -1)
+
+        if [ "$chrom_name" = "Chromosome" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_NC_000962.3.fna"
+        elif [ "$chrom_name" = "NC_000962.3" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/refseq.fna"
+        else
+            echo "CHROM name $chrom_name is invalid"
+        fi
+        
+        # create CRAM file
+        samtools view -b -T $ref_fasta -o {output.bam_file} {input.cram_file}
+
+        # delete the original CRAM file
+        rm {input.cram_file}
+        
+        # index the BAM file
+        samtools index {output.bam_file}
         """
-        # -p is ploidy
-        # freebayes says it automatically does left-alignment of indels, but there was an issue with that in the WHO catalog, so do it as well
-        # so left-align indels and drop duplicate records
-        # leave --min-alternate-count at the default of 2
-        # the minimum AF we're going down to is 1%, so set --min-alternate-fraction to 0.01
-        # --max-complex-gap
-        freebayes -f {params.ref_genome} \
-                  -p 1 \
-                  --min-alternate-count 2 \
-                  --min-alternate-fraction 0.01 \
-                  --min-mapping-quality 30 \
-                  --min-base-quality 30 \
-                  -b {input.merged_bam_file} \
-                  -v {output.vcf_file_init}
+        
+        
+        
+        
+        
+        
+rule convert_BAM_to_CRAM:
+    input:
+        bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
+    output:
+        cram_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.cram",
+    conda:
+        f"{primary_directory}/envs/read_processing_aln.yaml"
+    shell:
+        """        
+        # determine the appropriate FASTA file by getting the name of the reference chromosome used for alignment
+        chrom_name=$(samtools idxstats {input.bam_file}  | cut -f1 | head -1)
+
+        if [ "$chrom_name" = "Chromosome" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_NC_000962.3.fna"
+        elif [ "$chrom_name" = "NC_000962.3" ]; then
+            ref_fasta="/home/sak0914/Mtb_Megapipe/references/ref_genome/refseq.fna"
+        else
+            echo "CHROM name $chrom_name is invalid"
+        fi
+        
+        # create CRAM file
+        samtools view -T $ref_fasta -C -o {output.cram_file} {input.bam_file}
+
+        # delete the original BAM file
+        rm {input.bam_file}
+        
+        # index the CRAM file
+        samtools index {output.cram_file}
         """
+        
         
         
         
@@ -403,25 +458,59 @@ rule freebayes_variant_calling_all_haplotypes:
 
 
 
-
-
-rule freebayes_split_haplotypes_separate_records:
+# on indels only. If the alternate alleles are all substitutions, it will split them, and then it's hard to determine which AO values go with which
+rule decompose_complex_variants:
     input:
         vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.allHaps.vcf",
     output:
-        vcf_file_vcfwave = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.vcfwave.vcf"),
-        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.vcf",
-    params:
-        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
+        vcf_file_indels = f"{sample_out_dir}/freebayes/{{sample_ID}}.indels.vcfwave.vcf",
+        vcf_file_substitutions = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.substitutions.vcf"),
+        vcf_file_recombined = f"{sample_out_dir}/freebayes/{{sample_ID}}.decomposedComplexVariants.vcf",
     conda:
         f"{conda_directory}/envs/variant_normalization.yaml"
     shell:
         """
-        # vcfwave properly splits them, but misses splitting the AO field
-        vcfwave {input.vcf_file_init} | bedtools subtract -a '-' -b {params.exclude_regions} -header | bcftools sort > {output.vcf_file_vcfwave}
+        bcftools view --types indels,other {input.vcf_file_init} | vcfwave > {output.vcf_file_indels}
         
-        # vcfwave won't split multiallelic SNPs, so do that here
-        bcftools norm --multiallelics -snps {output.vcf_file_vcfwave} > {output.vcf_file_split}
+        bcftools view --types snps,mnps {input.vcf_file_init} > {output.vcf_file_substitutions}
+        
+        bcftools concat -Ov {output.vcf_file_indels} {output.vcf_file_substitutions} | bcftools sort > {output.vcf_file_recombined}
+        """
+
+
+
+
+rule freebayes_adjust_metrics_multiple_haplotypes_same_change:
+    input:
+        vcf_file_recombined = f"{sample_out_dir}/freebayes/{{sample_ID}}.decomposedComplexVariants.vcf",
+    output:
+        vcf_file_fixed = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.vcf",
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
+        
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/rules/fix_freebayes_haplotype_support.py \
+                -i {input.vcf_file_recombined} \
+                -o {output.vcf_file_fixed}
+        """
+
+
+
+
+rule freebayes_split_haplotypes_separate_records:
+    input:
+        vcf_file_fixed = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.vcf",
+    output:
+        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.vcf",
+    params:
+        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
+        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+    conda:
+        f"{conda_directory}/envs/variant_normalization.yaml"
+    shell:
+        """
+        # split multiallelics into separate lines and also perform indel left-normalization
+        bcftools norm --multiallelics -both {input.vcf_file_fixed} --fasta-ref {params.ref_genome} | bedtools subtract -a '-' -b {params.exclude_regions} -header | bcftools sort > {output.vcf_file_split}
         """
         
         
@@ -429,15 +518,12 @@ rule freebayes_split_haplotypes_separate_records:
 
 rule fix_AO_field_split_haplotypes:
     input:
-        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.vcf",
+        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.vcf",
     output:
-        vcf_file_split_fixedAO = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.vcf",
+        vcf_file_split_fixedAO = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.vcf",
     shell:
         """
-        set +u
-        eval "$(conda shell.bash hook)"
-        conda activate base
-        set -u
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
         
         python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/rules/split_AO_haplotypes.py \
                 -i {input.vcf_file_split} \
@@ -448,91 +534,34 @@ rule fix_AO_field_split_haplotypes:
 
 rule extract_TSV_of_final_freebayes_VCF:
     input:
-        vcf_file_split_fixedAO = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.vcf",
+        vcf_file_split = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.vcf",
     output:
-        vcf_file_final = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.final.vcf",
+        vcf_file_final_annot = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.eff.vcf",
         field_names = temp(f"{sample_out_dir}/freebayes/field_names.txt"),
-        tsv_file_final = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.split.fixedAO.final.tsv",
-    conda:
-        f"{conda_directory}/envs/variant_annotation.yaml"
-    params:
-        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
-    shell:
-        """
-        # left-normalize indels. Don't do anything to multiallelics
-        bcftools norm {input.vcf_file_split_fixedAO} --fasta-ref {params.ref_genome} > {output.vcf_file_final}
-
-        echo -e "POS\nREF\nALT\nQUAL\nFILTER" > {output.field_names}
-        grep "^##INFO=<ID=" {output.vcf_file_final} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
-        
-        SnpSift extractFields {output.vcf_file_final} $(paste -sd " " {output.field_names}) > {output.tsv_file_final}
-        """
-
-
-
-rule freebayes_VCF_normalization_decomposition:
-    input:
-        vcf_file_init = f"{sample_out_dir}/freebayes/{{sample_ID}}.init.vcf",
-    output:
-        vcf_file_split = temp(f"{sample_out_dir}/freebayes/{{sample_ID}}.split.vcf"),
-        vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
-    params:
-        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
-    conda:
-        f"{conda_directory}/envs/variant_normalization.yaml"
-    shell:
-        """
-        # left-align indels and split multiallelics after decomposing variants above
-        bcftools norm --multiallelics -both {input.vcf_file_init} --fasta-ref {params.ref_genome} > {output.vcf_file_split}
-        
-        # vcfwave won't split MNPs into consecutive SNPs, which is good in this case so that snpEff annotates them properly in the next step
-        vcfwave {output.vcf_file_split} | bcftools sort > {output.vcf_file}
-        """
-
-
-
-rule excludeLowConf_regions_freebayes_VCF:
-    input:
-        vcf_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.vcf",
-    output:
-        vcf_file_annot = f"{sample_out_dir}/freebayes/{{sample_ID}}.eff.vcf",
-        tsv_file = f"{sample_out_dir}/freebayes/{{sample_ID}}.tsv",
-        
-        vcf_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.eff.vcf",
-        tsv_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.tsv",
-        
-        field_names = temp(f"{sample_out_dir}/freebayes/field_names.txt"),
+        tsv_file_final = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.tsv",
     conda:
         f"{conda_directory}/envs/variant_annotation.yaml"
     params:
         snpEff_db = config['snpEff_db'],
-        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
     shell:
         """
-        # annotate with snpeff
-        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_file} > {output.vcf_file_annot}
-
-        # make a TSV file version of each of the VCF subsets made above (and the full one after excluding low confidence sites)
-        # get all field names because not sure which ones we will need for low AF variant detection
+        # annotate the VCF so that we can propagate it to the TSV file
+        snpEff eff {params.snpEff_db} -noStats -no-downstream -no-upstream -lof {input.vcf_file_split} > {output.vcf_file_final_annot}
+        
         echo -e "POS\nREF\nALT\nQUAL\nFILTER\nANN[0].GENE\nANN[0].HGVS_C\nANN[0].HGVS_P" > {output.field_names}
-        grep "^##INFO=<ID=" {output.vcf_file_annot} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
+        grep "^##INFO=<ID=" {output.vcf_file_final_annot} | cut -d'=' -f3 | cut -d',' -f1 >> {output.field_names}
         
-        # full TSV file, WITH the excluded regions          
-        SnpSift extractFields {output.vcf_file_annot} $(paste -sd " " {output.field_names}) > {output.tsv_file}
-        
-        # this BED file is /home/sak0914/Mtb_Megapipe/references/ref_genome/RLC_Regions.Plus.LowPmapK50E4.H37Rv.bed with extensions of 50 bp on each side of each region
-        bedtools subtract -a {output.vcf_file_annot} -b {params.exclude_regions} -header > {output.vcf_exclude_low_conf}
-        SnpSift extractFields {output.vcf_exclude_low_conf} $(paste -sd " " {output.field_names}) > {output.tsv_exclude_low_conf}        
+        SnpSift extractFields {output.vcf_file_final_annot} $(paste -sd " " {output.field_names}) > {output.tsv_file_final}
         """
-        
 
 
-rule write_lowAF_SNPs:
+
+rule add_aln_stats_to_freebayes_SNVs:
     input:
-        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
-        tsv_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.excludeLowConf.tsv",
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.cram",
+        tsv_exclude_low_conf = f"{sample_out_dir}/freebayes/{{sample_ID}}.cleaned.excludeLowConf.fixedAO.tsv",
     output:
-        lowAF_SNPs_file = f"{sample_out_dir}/freebayes/lowAF_SNPs.csv",
+        lowAF_SNPs_file = f"{sample_out_dir}/freebayes/lowAF_SNVs.csv",
     params:
         sample_ID = f"{{sample_ID}}",
     shell:
@@ -545,7 +574,7 @@ rule write_lowAF_SNPs:
                 -v {input.tsv_exclude_low_conf}
         """
         
-              
+      
         
         
 rule create_VCF_subsets_ROI:
@@ -613,7 +642,7 @@ rule pilon_variant_calling:
         f"{primary_directory}/envs/variant_calling.yaml"
     shell:
         """        
-        pilon -Xmx10g --minmq 1 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
+        pilon -Xmx10g --minmq 30 --minqual 20 --genome {params.ref_genome} --bam {input.merged_bam_file} --output {wildcards.sample_ID} --outdir {params.sample_pilon_dir} --variant
             
         # left-align indels and split multi-allelics, then gzip the full VCF file 
         # this affects those cases where the position of the indel is ambiguous
@@ -631,34 +660,107 @@ rule get_pilon_SNPs_indels:
         f"{primary_directory}/envs/variant_calling.yaml"
     shell:
         """
-        # save a VCF file of the SNP variants. Anything with BC >= 5 for at least 2 alleles       
-        bcftools filter -i '(strlen(REF) == strlen(ALT)) & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {input.vcf_file_gzip} > {output.vcf_SNPs}
-        
+        # save a VCF file of the SNP variants. Anything with BC >= 5 for at least 2 alleles               
+        # need to include ALT == '.' because if ALT = '.' (meaning REF and ALT are the same), it does not treat . as length 1. It's probably length 0. So you will miss low AF things.
+        bcftools filter -i '(strlen(REF) == strlen(ALT) || ALT == ".") & ((REF=="A" && ((BC[1]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="C" && ((BC[0]>=5) || (BC[2]>=5) || (BC[3]>=5))) || (REF=="G" && ((BC[0]>=5) || (BC[1]>=5) || (BC[3]>=5))) || (REF=="T" && ((BC[0]>=5) || (BC[1]>=5) || (BC[2]>=5))))' {input.vcf_file_gzip} > {output.vcf_SNPs}
+
         # indels won't be included, so save a separate file of indels, where IC >= 5 or DC >= 5
-        bcftools filter -i "(strlen(REF) != strlen(ALT)) & (IC >= 5 | DC >= 5)" {input.vcf_file_gzip} > {output.vcf_indels}
+        bcftools filter -i "(strlen(REF) != strlen(ALT) || ALT == '.') & (IC >= 5 | DC >= 5)" {input.vcf_file_gzip} > {output.vcf_indels}        
         """
-
-
-
-rule get_PASS_Amb_VCFs:
+        
+        
+        
+rule exclude_low_conf_regions_pilon:
     input:
-        vcf_file_gzip = f"{sample_out_dir}/pilon/{{sample_ID}}_full.vcf.gz",
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.vcf",
     output:
-        vcf_file_bgzip = f"{sample_out_dir}/pilon/{{sample_ID}}.PASSorAmb.vcf.bgz",
-        vcf_file_bgzip_index = f"{sample_out_dir}/pilon/{{sample_ID}}.PASSorAmb.vcf.bgz.tbi",
+        vcf_SNPs = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf",
+        vcf_indels = f"{sample_out_dir}/pilon/{{sample_ID}}_indels.excludeLowConf.vcf",
+    params:
+        exclude_regions = os.path.join(primary_directory, references_dir, config['exclude_regions_file']),
     conda:
-        "/home/sak0914/anaconda3/envs/MtbQuantCNN"
+        f"{conda_directory}/envs/long_read_aln.yaml"
     shell:
         """
-        zcat {input.vcf_file_gzip} | \
-        awk 'BEGIN{{FS="\\t";OFS="\\t"}} /^#/ {{print; next}} $7=="PASS" || $7=="Amb" {{print}}' | \
-        bgzip > {output.vcf_file_bgzip} && \
-        
-        tabix -p vcf {output.vcf_file_bgzip} -f
+        bedtools subtract -a {input.vcf_SNPs} -b {params.exclude_regions} -header > {output.vcf_SNPs}
+        bedtools subtract -a {input.vcf_indels} -b {params.exclude_regions} -header > {output.vcf_indels}
         """
 
 
 
+rule filter_pilon_high_quality_lowAF_SNVs:
+    input:
+        bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.cram",
+        depth_file_gzip = f"{sample_out_dir}/bam/{{sample_ID}}.depth.tsv.gz",
+        pilon_VCF_file = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf",
+    output:
+        lowAF_SNVs_CSV_file = f"{sample_out_dir}/pilon/lowAF_SNVs.csv",
+    params:
+        ref_genome = os.path.join(primary_directory, references_dir, "ref_genome", "H37Rv_NC_000962.3.fna"),
+        output_dir = sample_out_dir,
+    # conda:
+    #     f"{conda_directory}/envs/python_bioinformatics_utils.yaml"
+    threads: 
+        1
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils 
+        
+        # this scripts writes the lowAF variants BED file. The variants are in the coordinates of the personal ref genome
+        # the next step will be to run paftools liftover to transfer the coordinates to H37Rv for easy comparison
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/pilonVariantDetector/01_write_lowAF_BED.py \
+                -v {input.pilon_VCF_file} \
+                -b {input.bam_file} \
+                -d {input.depth_file_gzip} \
+                -o {output.lowAF_SNVs_CSV_file} \
+                -g {params.ref_genome}
+        """
+        
+        
+        
+rule bgzip_tabix_vcf_file:
+    input:
+        pilon_VCF_file = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf",
+    output:
+        pilon_VCF_file_bgzipped = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf.gz",
+        tabix_file = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf.gz.tbi",
+    conda:
+        f"{primary_directory}/envs/variant_annotation.yaml"
+    threads: 
+        1
+    shell:
+        """
+        bgzip -c {input.pilon_VCF_file} > {output.pilon_VCF_file_bgzipped}
+        
+        tabix {output.pilon_VCF_file_bgzipped}
+        """
+    
+        
+        
+rule add_aln_stats_to_pilon_SNPs:
+    input:
+        merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.cram",
+        lowAF_SNPs_CSV_file = f"{sample_out_dir}/pilon/lowAF_SNVs.csv",
+        pilon_VCF_file_bgzipped = f"{sample_out_dir}/pilon/{{sample_ID}}_SNPs.excludeLowConf.vcf.gz",
+    output:
+        lowAF_SNPs_CSV_file = f"{sample_out_dir}/pilon/lowAF_SNVs_aln_stats.csv",
+    params:
+        sample_ID = f"{{sample_ID}}",
+    threads: 
+        1
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/python_bioinformatics_utils
+        
+        python3 -u ~/MtbLongitudinalDiversity/lowAF_variant_calling/pilonVariantDetector/03_get_H37Rv_alignment_stats.py \
+                -s {params.sample_ID} \
+                -b {input.merged_bam_file} \
+                -v {input.lowAF_SNPs_CSV_file}
+        """
+        
+        
+        
 
 rule annotate_exclude_low_confidence_regions_pilon_VCF:
     input:
@@ -770,6 +872,7 @@ rule lineage_typing:
         
         
         
+        
 rule generate_VCF_for_TBtypeR:
     input:
         merged_bam_file = f"{sample_out_dir}/bam/{{sample_ID}}.dedup.bam",
@@ -785,13 +888,14 @@ rule generate_VCF_for_TBtypeR:
         8
     shell:
         """
-        bcftools mpileup {input.merged_bam_file} -q 1 -Q 10 -d 1000 -f {params.ref_genome} -a FMT/AD -Ou --threads {threads} \
+        bcftools mpileup {input.merged_bam_file} -q 1 -Q 10 -d 200 -f {params.ref_genome} -a FMT/AD -Ou --threads {threads} \
           | bcftools call --ploidy 1 -A -m --prior 1e-2 -C alleles -T {params.tbtypeR_targets} -Ou --threads {threads} \
           | bcftools annotate -x INFO,^FORMAT/GT,^FORMAT/AD -Ov -o {output.tbtypeR_VCF_file_init} --threads {threads}
           
         # rename Chromosome to NC_000962.3 for compatibility
         sed 's/Chromosome/NC_000962.3/g' {output.tbtypeR_VCF_file_init} | gzip -c > {output.tbtypeR_VCF_file}
         """
+        
         
         
         
@@ -804,8 +908,11 @@ rule remove_low_quality_sites_TBtypeR_VCF:
         f"{primary_directory}/envs/variant_calling.yaml"
     params:
         exclude_low_mappability_regions = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/BED_files/exclude_regions_50bp.EBRlessThan95Percent_refseq.bed",
-        exclude_low_quality_unfixed_SNV_sites = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/BED_files/exclude_unfixed_SNV_sites.bed",
+        high_homology_regions = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/BED_files/10_high_homology_regions.bed",
     shell:
         """
-        bedtools subtract -a {input.tbtypeR_VCF_file} -b {params.exclude_low_mappability_regions} -header | bedtools subtract -a '-' -b {params.exclude_low_quality_unfixed_SNV_sites} -header | bcftools sort | gzip -c > {output.tbtypeR_VCF_file_filtered}
+        # remove Rv2081c-Rv2082 region: 2338065 - 2340874
+        bedtools subtract -a {input.tbtypeR_VCF_file} -b {params.exclude_low_mappability_regions} -header | \
+        bedtools subtract -a '-' -b {params.high_homology_regions} -header | \
+        bcftools filter -e 'POS >= 2338065 & POS <= 2340874' | bcftools sort | gzip -c > {output.tbtypeR_VCF_file_filtered}
         """

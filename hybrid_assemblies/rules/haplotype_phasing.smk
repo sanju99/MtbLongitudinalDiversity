@@ -15,18 +15,43 @@ primary_directory = "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies"
 input_DataInfo_DF = pd.read_csv(config["inputSampleData"])
 
 # drop samples that don't have an original ID (SNNN-NN type ID)
-input_DataInfo_DF = input_DataInfo_DF.dropna(subset=['Original_ID', 'PacBio_FQ_PATH', 'Illumina_ID']).reset_index(drop=True)
+# input_DataInfo_DF = input_DataInfo_DF.dropna(subset=['Original_ID', 'PacBio_FQ_PATH', 'Illumina_ID']).reset_index(drop=True)
 
-input_All_SampleIDs = list( input_DataInfo_DF["Original_ID"].values )
+# input_All_SampleIDs = list( input_DataInfo_DF["Original_ID"].values )
 
-SampleID_To_PB_FQ_Dict = dict(input_DataInfo_DF[["Original_ID", "PacBio_FQ_PATH"]].values)
+# SampleID_To_PB_FQ_Dict = dict(input_DataInfo_DF[["Original_ID", "PacBio_FQ_PATH"]].values)
+
+input_All_SampleIDs = input_DataInfo_DF['SampleID'].values
 
 rule all:
     input:
-        [f"{output_dir}/{sample}/TBtypeR/haplotype_{num}.vcf.gz" for sample in input_All_SampleIDs for num in [1, 2]],
+        [f"{output_dir}/{sample}/liftoff.gff" for sample in input_All_SampleIDs],
+        # [f"{output_dir}/{sample}/TBtypeR/haplotype_{num}.vcf.gz" for sample in input_All_SampleIDs for num in [1, 2]],
         # [f"{output_dir}/{sample}/variants/{sample}.phased.SNPs.excludeLowConf.vcf" for sample in input_All_SampleIDs]
         
 sample_out_dir = f"{output_dir}/{{sample_ID}}"
+
+
+rule run_liftoff:
+    input:
+        H37Rv_gff = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv.NCBI.gff3",
+        H37Rv_genome = "/home/sak0914/Mtb_Megapipe/references/ref_genome/H37Rv_NC_000962.3.fna",
+        assembly = f"{sample_out_dir}/{{sample_ID}}.HybridAsm.fasta",
+    output:
+        liftoff_gff = f"{sample_out_dir}/liftoff.gff",
+        polished_liftoff_gff_file = f"{sample_out_dir}/liftoff.gff_polished",
+        liftoff_intermediate_dir = temp(directory(f"{sample_out_dir}/intermediate_files")),
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/liftoff
+
+        liftoff -g {input.H37Rv_gff} \
+                -o {output.liftoff_gff} \
+                -copies -polish \
+                -dir {output.liftoff_intermediate_dir} \
+                {input.assembly} {input.H37Rv_genome}
+        """
+
 
 
 rule align_PB_reads_H37Rv:

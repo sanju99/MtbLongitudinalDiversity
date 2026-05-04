@@ -1,0 +1,213 @@
+---
+title: "Linear Mixed Model Low AF Variants"
+output: html_document
+date: "2025-10-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# install.packages('caret')
+
+library("lme4")
+library('caret')
+library('pROC')
+library(ggplot2)
+library(broom)
+library(broom.mixed)
+```
+
+```{r}
+model_dir <- "unmixed_only_clean"
+
+model_dir = paste("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/variantDetector/", model_dir, sep="")
+
+df_train <- read.csv(paste(model_dir, "/training_data.csv", sep=""))
+
+# predictors <- c("COV_RATIO", "CLIPPED_BASES_RATIO", "DISCORDANT_READS_RATIO", "Mean_BQ_ALT_allele", "SAF_prop_deviation_from_half", "SNPS_MAX_ROLLING_AVG")
+
+predictors <- c("COV_RATIO_DIFF_FROM_1", "CLIPPED_BASES_RATIO", "DISCORDANT_READS_RATIO", "Mean_BQ_ALT_allele", "SAF_prop_deviation_from_half")
+
+# predictors <- c("COV_RATIO", "CLIPPED_BASES_RATIO", "DISCORDANT_READS_RATIO", "Mean_BQ_ALT_allele", "SAF_prop_deviation_from_half")
+
+# just get X for df_fixed
+# X_fixed <- df_fixed[, predictors]
+# fixed_samples <- df_fixed[['SampleID']]
+
+# Extract X and y
+X_train <- df_train[, predictors]
+y_train <- df_train[['Real']]
+train_samples <- df_train[['SampleID']]
+
+df_val <- read.csv(paste(model_dir, "/validation_data.csv", sep=""))
+
+# Extract X and y
+X_val <- df_val[, predictors]
+val_samples <- df_val[['SampleID']]
+
+dim(X_train)
+dim(X_val)
+table(df_train$Real)
+```
+
+```{r}
+# --- Standardize predictors ---
+X_train_mean <- sapply(X_train, mean, na.rm = TRUE)
+X_train_sd <- sapply(X_train, sd, na.rm = TRUE)
+
+save(X_train_mean, file = paste(model_dir, "/X_train_mean.RData", sep=""))
+save(X_train_sd, file = paste(model_dir, "/X_train_sd.RData", sep=""))
+
+# Scale training predictors
+X_train_scaled <- as.data.frame(scale(X_train, center = X_train_mean, scale = X_train_sd))
+X_val_scaled <- as.data.frame(scale(X_val, center = X_train_mean, scale = X_train_sd))
+# X_fixed_scaled <- as.data.frame(scale(X_fixed, center = X_train_mean, scale = X_train_sd))
+
+# combine into dataframes
+df_train_scaled = cbind(X_train_scaled, Real = y_train, SampleID = train_samples)
+df_val_scaled = cbind(X_val_scaled, SampleID = val_samples)
+
+# then cbind the original df_val with identifier columns
+df_train_scaled = cbind(df_train_scaled, df_train[, c("POS", "REF", "ALT", "AF")])
+df_val_scaled = cbind(df_val_scaled, df_val[, c("POS", "REF", "ALT", "AF")])
+```
+    
+    
+```{r}
+compute_metrics <- function(df, pred_col = "predicted", true_col = "Real", threshold = 0.5) {
+  # Binarize predictions based on threshold
+  df$pred_class <- ifelse(df[pred_col] >= threshold, 1, 0)
+  
+  # True positives, false positives, true negatives, false negatives
+  TP <- sum(df$pred_class == 1 & df[true_col] == 1)
+  FP <- sum(df$pred_class == 1 & df[true_col] == 0)
+  TN <- sum(df$pred_class == 0 & df[true_col] == 0)
+  FN <- sum(df$pred_class == 0 & df[true_col] == 1)
+  
+  # Metrics
+  precision <- if ((TP + FP) == 0) NA else TP / (TP + FP)
+  recall <- if ((TP + FN) == 0) NA else TP / (TP + FN)  # Sensitivity
+  specificity <- if ((TN + FP) == 0) NA else TN / (TN + FP)
+  auc <- as.numeric(pROC::roc(df[[true_col]], df[[pred_col]], quiet = TRUE)$auc)
+  
+  # Return as a list
+  return(list(
+    auc = auc,
+    precision = precision,
+    recall = recall,
+    specificity = specificity,
+    sum_sens_spec = recall + specificity,
+    sum_sens_prec = recall + precision,
+    F1 = 2 * recall * precision / (recall + precision)
+  ))
+}
+# Function to find best threshold
+compute_best_binarization_threshold <- function(df, pred_col = "predicted", true_col = "Real", thresholds = seq(0, 1, 0.01)) {
+  metrics <- sapply(thresholds, function(t) compute_metrics(df, pred_col, true_col, t))
+  metrics_df <- as.data.frame(t(metrics))
+  metrics_df$threshold <- thresholds
+  
+  best_row <- metrics_df[which.max(metrics_df$F1), ]
+  best_thresh <- best_row$threshold
+  
+  return(list(best_threshold = best_thresh, metrics = best_row))
+}
+```
+
+```{r}
+# Fit a mixed-effects logistic regression model
+# Build the fixed-effects part of the formula
+fixed_effects <- paste(predictors, collapse = " + ")
+
+fit_model <- TRUE
+include_random_effects <- TRUE
+
+# Switch: include random effects or not
+if (include_random_effects) {
+  # Example random effect; adjust as needed
+  formula_str <- paste("Real ~", fixed_effects, "+ (1 | SampleID)")
+  model_name <- "logistic_mixed_model.RData"
+} else {
+  formula_str <- paste("Real ~", fixed_effects)
+  model_name <- "logistic_fixed_model.RData"
+}
+
+model_formula <- as.formula(formula_str)
+
+# Fit or load model
+if (fit_model) {
+
+  if (include_random_effects) {
+    model <- glmer(
+      model_formula,
+      data = df_train_scaled,
+      family = binomial(link = "logit"),
+    )
+  } else {
+    model <- glm(
+      model_formula,
+      data = df_train_scaled,
+      family = binomial(link = "logit")
+    )
+  }
+
+  save(model, file = file.path(model_dir, model_name))
+
+} else {
+  load(file.path(model_dir, model_name))
+}
+```
+
+```{r}
+load(paste(model_dir, model_name, sep="/"))
+
+pred_col <- "predicted"
+
+# df_train_scaled[pred_col] <- predict(model, newdata = df_train_scaled, type = "response", allow.new.levels = TRUE)
+
+# don't include random effects because you can't use them for new data
+df_train_scaled[pred_col] <- predict(model, newdata = df_train_scaled, type = "response", re.form = NA)
+
+# get predictions on the training set
+# df_train_scaled$predicted <- predict(model, newdata = df_train_scaled, type = "response")
+
+# plot ROC AUC
+train_roc_obj <- roc(df_train_scaled$Real, df_train_scaled[[pred_col]])
+plot(train_roc_obj)
+auc(train_roc_obj)
+
+# maximize the sum of sensitivity and precision
+best_model_results <- compute_best_binarization_threshold(df_train_scaled, pred_col = pred_col)
+best_metrics <- best_model_results$metrics
+best_threshold <- best_model_results$best_threshold
+print(paste("Best threshold", best_threshold))
+```
+
+```{r}
+# get predictions on the training set. allow.new.levels = TRUE ignores random effects if there are new levels because they weren't seen during training. Needed if you have some samples in the validation data not in the training data
+# df_val$predicted <- predict(model, newdata = df_val_scaled, allow.new.levels = TRUE, type = "response")
+df_val[pred_col] <- predict(model, newdata = df_val_scaled, type = "response", re.form = NA)
+
+# add the binary predictions, binarized at the best_threshold
+df_val$pred_class <- ifelse(df_val$predicted >= best_threshold, 1, 0)
+
+# get predictions on the training set. re.form = NA ignores random effects. Needed if you have some samples in the validation data not in the training data
+df_train[pred_col] <- predict(model, newdata = df_train_scaled, type = "response", re.form = NA)
+
+# add the binary predictions, binarized at the best_threshold
+df_train$pred_class <- ifelse(df_train$predicted >= best_threshold, 1, 0)
+
+# save
+write.csv(df_train, paste(model_dir, "/training_data_with_predictions.csv", sep=""), row.names = FALSE)
+write.csv(df_val, paste(model_dir, "/validation_data_with_predictions.csv", sep=""), row.names = FALSE)
+```
+
+
+```{r}
+# load(paste(model_dir, model_name, sep="/"))
+tidy_model <- tidy(model, effects = "fixed", conf.int = TRUE, conf.method = "Wald", exponentiate = TRUE)
+
+write.csv(tidy_model, paste(model_dir, "/", tools::file_path_sans_ext(model_name), ".csv", sep=""), row.names=FALSE)
+
+View(tidy_model)
+```

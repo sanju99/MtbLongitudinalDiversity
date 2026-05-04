@@ -84,76 +84,20 @@ rule extract_kraken_classified_long_reads:
         
 
 
-rule align_reads_to_IS6110_region:
-    input:
-        fastq_classified = f"{sample_out_dir}/PacBio/kraken/{{sample_ID}}.kraken.filtered.fastq.gz",
-    output:
-        sam_file = temp(f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.sam"),
-        bam_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bam",
-        bam_index_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bam.bai",
-        IS6110_reads_file_unzipped = temp(f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.fastq"),
-        IS6110_reads_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.fastq.gz",
-    params:
-        output_dir = output_dir,
-        IS6110_H37Rv_sequence = os.path.join(primary_directory, references_dir, "ref_genome", "IS6110.H37Rv.fasta"),
-    conda:
-        f"{conda_directory}/envs/long_read_aln.yaml"
-    threads:
-        8
-    shell:
-        """
-        minimap2 -ax map-hifi {params.IS6110_H37Rv_sequence} {input.fastq_classified} > {output.sam_file}
-
-        # sort alignment and convert to bam file
-        samtools view -b {output.sam_file} | samtools sort > {output.bam_file}
-
-        # index the BAM file with samtools
-        samtools index {output.bam_file}
-        
-        # extract reads that map to the IS6110 sequence and save
-        bedtools bamtofastq -i {output.bam_file} -fq {output.IS6110_reads_file_unzipped}
-        
-        # gzip
-        gzip -c {output.IS6110_reads_file_unzipped} > {output.IS6110_reads_file}
-        """
-        
-        
-rule align_IS6110_reads_to_H37Rv:
-    input:
-        IS6110_reads_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.fastq.gz",
-    output:
-        sam_file = temp(f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.H37Rv.sam"),
-        bam_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.H37Rv.bam",
-        bam_index_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.H37Rv.bam.bai",
-    params:
-        output_dir = output_dir,
-        personal_ref_genome = lambda w: sample_asm_dict[w.sample_ID],
-    conda:
-        f"{conda_directory}/envs/long_read_aln.yaml"
-    threads:
-        8
-    shell:
-        """
-        minimap2 -ax map-hifi {params.personal_ref_genome} {input.IS6110_reads_file} > {output.sam_file}
-
-        # sort alignment and convert to bam file
-        samtools view -b {output.sam_file} | samtools sort > {output.bam_file}
-
-        # index the BAM file with samtools
-        samtools index {output.bam_file}
-        """
+# extract reads that map to the IS6110 sequence and save
+# bedtools bamtofastq -i {output.bam_file} -fq {output.IS6110_reads_file_unzipped}
         
         
 rule align_IS6110_to_personal_genome:
     input:
         personal_ref_genome = lambda w: sample_asm_dict[w.sample_ID],
     output:
-        unsorted_sam_file = temp(f"{sample_out_dir}/IS6110/{{sample_ID}}.unsorted.sam"),
-        sam_file = f"{sample_out_dir}/IS6110/{{sample_ID}}.sam",
-        bam_file = f"{sample_out_dir}/IS6110/{{sample_ID}}.bam",
-        bam_index_file = f"{sample_out_dir}/IS6110/{{sample_ID}}.bam.bai",
+        unsorted_sam_file = temp(f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.unsorted.sam"),
+        sam_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.sam",
+        bam_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bam",
+        bam_index_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bam.bai",
     params:
-        IS6110_H37Rv_sequence = os.path.join(primary_directory, references_dir, "ref_genome", "IS6110.H37Rv.fasta"),
+        IS6110_H37Rv_sequence = "/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/IS6110.H37Rv.fasta",
     conda:
         f"{conda_directory}/envs/long_read_aln.yaml"
     threads:
@@ -161,7 +105,7 @@ rule align_IS6110_to_personal_genome:
     shell:
         """
         # target, then query
-        minimap2 -ax asm5 -X {input.personal_ref_genome} {params.IS6110_H37Rv_sequence} > {output.unsorted_sam_file}
+        minimap2 -ax asm5 {input.personal_ref_genome} {params.IS6110_H37Rv_sequence} > {output.unsorted_sam_file}
 
         # sort alignment and convert to bam file
         samtools view -b {output.unsorted_sam_file} | samtools sort > {output.bam_file}
@@ -173,3 +117,20 @@ rule align_IS6110_to_personal_genome:
         samtools view {output.bam_file} > {output.sam_file}
         """
         
+        
+        
+rule convert_IS6110_coordinates_to_H37Rv:
+    input:
+        bam_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bam",
+        paf_file = f"{sample_out_dir}/assembly/{{sample_ID}}.H37Rv.paf",
+    output:
+        bed_file = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.bed",
+        bed_file_H37Rv = f"{sample_out_dir}/PacBio/IS6110/{{sample_ID}}.H37Rv.bed",
+    shell:    
+       """
+       source activate /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda/8b57fc236dc2bbc64134703f48ce44cb_
+       
+       bedtools bamtobed  -i {input.bam_file} > {output.bed_file}
+       
+       paftools.js liftover {input.paf_file} {output.bed_file} | bedtools sort > {output.bed_file_H37Rv}
+       """

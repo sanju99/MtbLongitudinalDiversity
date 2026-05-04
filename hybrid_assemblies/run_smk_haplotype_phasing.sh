@@ -29,4 +29,4 @@ snakemake --snakefile rules/haplotype_phasing.smk \
           --resources mem_mb=50000 \
           --rerun-incomplete --keep-going \
           --directory /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies \
-          --conda-prefix /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda # --dry-run
+          --conda-prefix /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda #--dry-run

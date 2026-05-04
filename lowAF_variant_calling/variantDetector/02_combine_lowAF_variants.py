@@ -8,7 +8,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-s", "--sample", dest='sample', type=str, required=True, help='Sample name')
 parser.add_argument("-bed1", dest='lowAF_variants_personal_genome_BED_fName', type=str, help='BED file of low frequency variants called using the personal reference genome')
-parser.add_argument("-bed2", dest="lowAF_variants_H37Rv_BED_fName", type=str, help='BED file of low frequency variants called using the H37Rv reference genome, after excluding low confidence sites.')
+parser.add_argument("-bed2", dest="lowAF_variants_H37Rv_BED_fName", type=str, help='BED file of low frequency variants called using the personal reference genome, then transferred to the H37Rv reference genome, after excluding low confidence sites.')
 parser.add_argument("-tsv", dest="lowAF_variants_H37Rv_TSV_fName", type=str, help='TSV file of low frequency variants called using the H37Rv reference genome, after excluding low confidence sites. TSV should be extracted using SnpSift')
 
 cmd_line_args = parser.parse_args()
@@ -25,6 +25,7 @@ save_dir = os.path.dirname(os.path.dirname(lowAF_variants_personal_genome_BED_fN
 
 # QC information about the variants in personal coords is in here. Will merge with the file below in H37Rv coordinates
 # df_lowAF_variants_personal_asm_personal_coords = pd.read_csv(f"{personal_ref_dir}/{sample}/freebayes/lowAF_variants.bed", sep='\t')
+# we already ran split_MNPs_into_SNPs in 01_write_lowAF_BED.py before writing the BED file
 df_lowAF_variants_personal_asm_personal_coords = pd.read_csv(lowAF_variants_personal_genome_BED_fName, sep='\t')
 
 keep_cols = ['REF', 'ALT', 'QUAL', 'FILTER', 'DP', 'RO', 'AO', 'AF', 'MQM', 'MQMR', 'SRF', 'SRR', 'SAF', 'SAR', 'SRP', 'SAP', 'RPP', 'RPPR', 'RPL', 'RPR']
@@ -74,6 +75,7 @@ if len(df_lowAF_variants_personal_asm_personal_coords) > 0:
         keep_cols = ['POS'] + keep_cols
         df_ground_truth = df_ground_truth[keep_cols]
     
+    
 # if there are no low AF variants, make an empty dataframe
 else:
     keep_cols = ['POS'] + keep_cols
@@ -87,6 +89,15 @@ df_ground_truth.to_csv(f"{save_dir}/lowAF_comparison/ground_truth.csv", index=Fa
 
 # get the dataframe of variants from the freebayes VCF of Illumina reads aligned to H37Rv
 df_lowAF_variants_H37Rv_asm = pd.read_csv(lowAF_variants_H37Rv_TSV_fName, sep='\t')
+df_lowAF_variants_H37Rv_asm['SampleID'] = sample
+
+# need to split MNVs into SNVs
+df_lowAF_variants_H37Rv_asm_split_MNVs = split_MNPs_into_SNPs(df_lowAF_variants_H37Rv_asm)
+
+# recombine with indels because df_lowAF_variants_H37Rv_asm_split_MNVs will only contain SNVs and MNVs (now split)
+df_lowAF_variants_H37Rv_asm = pd.concat([df_lowAF_variants_H37Rv_asm.query("REF.str.len() != ALT.str.len()"),
+                                         df_lowAF_variants_H37Rv_asm_split_MNVs
+                                        ]).reset_index(drop=True)
 
 # add AF column
 df_lowAF_variants_H37Rv_asm['AF'] = df_lowAF_variants_H37Rv_asm['AO'] / df_lowAF_variants_H37Rv_asm['DP']

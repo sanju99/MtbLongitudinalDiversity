@@ -16,7 +16,7 @@ sample_run_dict = dict(zip(df_samples_runs[0], df_samples_runs[1].str.split(',')
 
 # make a dictionary of binary values indicating whether (1) or not (0) to download publicly available FASTQ files
 # assert df_samples_runs[2].isin([0, 1]).all()
-# download_public_FASTQ_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
+download_public_FASTQ_dict = dict(zip(df_samples_runs[0], df_samples_runs[2]))
 
 include: "rules/rules.smk"
 
@@ -24,11 +24,14 @@ include: "rules/rules.smk"
 
 rule all:
     input:
-        # [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.excludeLowConf.split.fixedAO.final.tsv" for sample_ID in df_samples_runs[0].values],
-        # [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.init.allHaps.vcf" for sample_ID in df_samples_runs[0].values],
-        # [f"{output_dir}/{sample_ID}/freebayes/lowAF_SNPs.csv" for sample_ID in df_samples_runs[0].values],
-        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_SNPs.vcf" for sample_ID in df_samples_runs[0].values],
-        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}.PASSorAmb.vcf.bgz.tbi" for sample_ID in df_samples_runs[0].values],
+        [f"{output_dir}/{sample_ID}/freebayes/{sample_ID}.cleaned.excludeLowConf.fixedAO.tsv" for sample_ID in df_samples_runs[0].values],
         [f"{output_dir}/{sample_ID}/TBtypeR/{sample_ID}.filtered.vcf.gz" for sample_ID in df_samples_runs[0].values],
         # [f"{output_dir}/{sample_ID}/lineage/mixing_scores_Coll2014.csv" for sample_ID in df_samples_runs[0].values],
         # [f"{output_dir}/{sample_ID}/lineage/fast_lineage_caller_output.txt" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/delly/{sample_ID}.tsv" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_TBtypeR_SNPs.vcf" for sample_ID in df_samples_runs[0].values],
+        [f"{output_dir}/{sample_ID}/freebayes/lowAF_SNVs.csv" for sample_ID in df_samples_runs[0].values],
+        [f"{output_dir}/{sample_ID}/pilon/lowAF_SNVs_aln_stats.csv" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/bam/{sample_ID}.dedup.cram" for sample_ID in df_samples_runs[0].values],
+        # [f"{output_dir}/{sample_ID}/{run_ID}/fastlin/output.txt" for sample_ID in sample_run_dict.keys() for run_ID in sample_run_dict[sample_ID]],
+        # [f"{output_dir}/{sample_ID}/pilon/{sample_ID}_full.vcf.gz" for sample_ID in sample_run_dict.keys()]

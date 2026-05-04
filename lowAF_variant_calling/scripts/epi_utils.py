@@ -3,6 +3,7 @@ import pandas as pd
 import glob, os
 import scipy.stats as st
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import seaborn as sns
 from functools import reduce
 from sklearn.preprocessing import StandardScaler
@@ -178,7 +179,7 @@ def pool_imputation_results(df, num_samples, coef_col, se_col, alpha=0.05, inver
 
 
 
-def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log=False, pval_offset=1.05, df_stratify_variables_results=None, saveName=None):
+def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log=False, pval_offset=1.05, x_lim=None, df_stratify_variables_results=None, saveName=None):
     
     # add the relative risks dataframe to plot those as well
     if df_stratify_variables_results is not None:
@@ -189,6 +190,13 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
 
     df.loc[df['pval'] <= alpha, 'significant'] = 1
     df['significant'] = df['significant'].fillna(0).astype(int)
+
+    # plot asterisks instead of p-values
+    df.loc[df['pval'] <= 1e-4, 'asterisk'] = '****'
+    df.loc[df['pval'] <= 1e-3, 'asterisk'] = '***'
+    df.loc[df['pval'] <= 1e-2, 'asterisk'] = '**'
+    df.loc[df['pval'] <= 5e-2, 'asterisk'] = '*'
+    df.loc[df['pval'] > 5e-2, 'asterisk'] = ''
 
     # improve the names for tick labels
     df['plot_column'] = df['covariate'].map(labels_dict)
@@ -211,30 +219,6 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
     df.loc[df['significant']==1, 'err_color'] = 'darkorange'
     df.loc[df['significant']==0, 'point_color'] = 'black'
     df.loc[df['significant']==0, 'err_color'] = 'gray'
-            
-#     # Separate significant and non-significant predictors
-#     significant_df = df.query("significant==1")
-#     non_significant_df = df.query("significant==0")
-    
-#     # Plotting
-#     fig, ax = plt.subplots(figsize=(6, len(df) * 0.6))
-
-#     conf_lower_col = f"{val_col}_lower"
-#     conf_upper_col = f"{val_col}_upper"
-    
-#     # Plot significant predictors in orange
-#     ax.errorbar(
-#         significant_df[val_col], range(len(significant_df)),
-#         xerr=[significant_df[val_col] - significant_df[conf_lower_col], significant_df[conf_upper_col] - significant_df[val_col]],
-#         fmt='o', color='darkorange', ecolor='darkorange', markeredgewidth=0.7, markeredgecolor='black', capsize=3, label='Significant'
-#     )
-
-#     # Plot non-significant predictors in gray
-#     ax.errorbar(
-#         non_significant_df[val_col], range(len(significant_df), len(significant_df) + len(non_significant_df)),
-#         xerr=[non_significant_df[val_col] - non_significant_df[conf_lower_col], non_significant_df[conf_upper_col] - non_significant_df[val_col]],
-#         fmt='o', color='black', ecolor='gray', capsize=3, label='Non-Significant'
-#     )
 
     # Plotting
     fig, ax = plt.subplots(figsize=(6, len(df) * 0.6))
@@ -262,7 +246,7 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
     
         # digits = sig - int(np.floor(np.log10(abs(x)))) - 1
         # return f"{round(x, digits):f}".rstrip('0').rstrip('.')  # strip trailing 0s and .
-
+        
     for i, row in df.iterrows():
     
         # Plot significant predictors in orange
@@ -274,7 +258,9 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
             fmt='o', color=row['point_color'], ecolor=row['err_color'], markeredgewidth=0.7, markeredgecolor='black', capsize=3
         )
 
-        ax.text(df[conf_upper_col].max() * pval_offset, i + 0.1, f"p = {format_sigfig_fixed(row['pval'])}")
+        # ax.text(df[conf_upper_col].max() * pval_offset, i + 0.1, f"p = {format_sigfig_fixed(row['pval'])}")
+        if row['asterisk'] != '':
+            ax.text(df[conf_upper_col].max() * pval_offset, i + 0.1, row['asterisk'])
 
     # Customize plot appearance
     ax.set_yticks(range(len(df)))
@@ -298,7 +284,11 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
         plt.xscale('log', base=10)
         
         # change the tick labels from 10^0 to 1
-        ax.set_xticks(ax.get_xticks(), [format_sigfig_fixed(val) for val in ax.get_xticks()])
+        # ax.set_xticks(ax.get_xticks(), [format_sigfig_fixed(val) for val in ax.get_xticks()])
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda x, _: format_sigfig_fixed(x)))
+                      
+    if x_lim is not None:
+        plt.xlim(x_lim[0], x_lim[1])
 
     # Show or save the plot
     if saveName is None:
@@ -306,8 +296,8 @@ def forest_plot(df, covariates_order, labels_dict, val_col='OR', alpha=0.05, log
     else:
         plt.savefig(saveName, bbox_inches='tight')
         plt.close()
-        
-        
+                
+                
         
         
         
@@ -429,7 +419,7 @@ def convert_categorical_to_actual_MICs(df_categorical, drug, MIC_encoding_dict):
 
 
 
-def read_combine_all_TRUST_data(df_trust_patients, drug_lineage_inclusion_dict, CNN_results_dir, F2_thresh=0.03, baseline_only=True):
+def read_combine_all_TRUST_data(df_trust_patients, drug_lineage_inclusion_dict, CNN_results_dir=None, F2_thresh=0.03, baseline_only=True):
     '''
     This function keeps only measured MICs and WGS samples taken in the first two weeks of treatment because we are interested in associating baseline characteristics with outcome.
     '''
@@ -534,33 +524,38 @@ def read_combine_all_TRUST_data(df_trust_patients, drug_lineage_inclusion_dict, 
     #################################################### STEP 6: READ IN ALL AVAILABLE PREDICTED MICS #########################################################
 
     
-    df_pred_combined = []
-    
-    for drug in drugs_lst:
-
-        # which models to use for each drug
-        assert drug_lineage_inclusion_dict[drug] in ['lineage_amino_acid', 'amino_acid']
-        df_pred = pd.read_csv(os.path.join(CNN_results_dir, f"{drug}_{drug_lineage_inclusion_dict[drug]}", "TRUST", "test_predictions.csv")).rename(columns={'ROLLINGDB_ID': 'SampleID', 'pred_MIC': f'{drug}_pred_MIC'})
-
-        # drop patient duplicates (because multiple WGS samples per pid)
-        df_pred = df_pred.merge(df_trust_patients[['SampleID', 'Original_ID', 'pid']]).sort_values(['pid', 'Original_ID']).drop_duplicates('pid', keep='first').reset_index(drop=True)
-    
-        print(f"Found predicted {drug} MICs for {len(df_pred)} pids")
+    if CNN_results_dir is not None:
         
-        df_pred_combined.append(df_pred[['pid', f'{drug}_pred_MIC']])
-    
-    df_pred_combined = reduce(lambda left, right: pd.merge(left, right, on='pid', how='outer'), df_pred_combined)
-    print(f"{df_pred_combined.pid.nunique()} patients have predicted MICs")
+        df_pred_combined = []
 
-    # these should have all the same patients because the predicted MICs come from the high-quality WGS samples 
-    assert len(set(df_trust_patients.pid).symmetric_difference(df_pred_combined.pid)) == 0
+        for drug in drugs_lst:
 
-    # categorical variable for this, interesting to look at by plotting
-    df_trust_patients.loc[(df_trust_patients['bl_hiv']==0), 'HIV_CD4'] = 0
-    df_trust_patients.loc[(df_trust_patients['bl_hiv']==1) & (df_trust_patients['bl_cd4'] >= 200), 'HIV_CD4'] = 1
-    df_trust_patients.loc[(df_trust_patients['bl_hiv']==1) & (df_trust_patients['bl_cd4'] < 200), 'HIV_CD4'] = 2
+            # which models to use for each drug
+            assert drug_lineage_inclusion_dict[drug] in ['lineage_amino_acid', 'amino_acid']
+            df_pred = pd.read_csv(os.path.join(CNN_results_dir, f"{drug}_{drug_lineage_inclusion_dict[drug]}", "TRUST", "test_predictions.csv")).rename(columns={'ROLLINGDB_ID': 'SampleID', 'pred_MIC': f'{drug}_pred_MIC'})
 
-    return df_trust_patients, TRUST_phenos, df_pred_combined
+            # drop patient duplicates (because multiple WGS samples per pid)
+            df_pred = df_pred.merge(df_trust_patients[['SampleID', 'Original_ID', 'pid']]).sort_values(['pid', 'Original_ID']).drop_duplicates('pid', keep='first').reset_index(drop=True)
+
+            print(f"Found predicted {drug} MICs for {len(df_pred)} pids")
+
+            df_pred_combined.append(df_pred[['pid', f'{drug}_pred_MIC']])
+
+        df_pred_combined = reduce(lambda left, right: pd.merge(left, right, on='pid', how='outer'), df_pred_combined)
+        print(f"{df_pred_combined.pid.nunique()} patients have predicted MICs")
+
+        # these should have all the same patients because the predicted MICs come from the high-quality WGS samples 
+        assert len(set(df_trust_patients.pid).symmetric_difference(df_pred_combined.pid)) == 0
+
+        # categorical variable for this, interesting to look at by plotting
+        df_trust_patients.loc[(df_trust_patients['bl_hiv']==0), 'HIV_CD4'] = 0
+        df_trust_patients.loc[(df_trust_patients['bl_hiv']==1) & (df_trust_patients['bl_cd4'] >= 200), 'HIV_CD4'] = 1
+        df_trust_patients.loc[(df_trust_patients['bl_hiv']==1) & (df_trust_patients['bl_cd4'] < 200), 'HIV_CD4'] = 2
+
+    if CNN_results_dir is not None:
+        return df_trust_patients, TRUST_phenos, df_pred_combined
+    else:
+        return df_trust_patients, TRUST_phenos
 
 
 
@@ -667,7 +662,7 @@ def dummy_encode_lineages(df, lineage_col, binary=False):
 
 
 
-def process_input_features_for_model(df, model_cols, stratify_variables=[], MIC_type='none', include_drugs=[], binarize_drugs=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, binary_lineage=False):
+def process_input_features_for_model(df, model_cols, stratify_variables=[], MIC_type='none', include_drugs=[], binarize_drugs=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, binary_lineage=False, PLI_thresh=20):
 
     df_model = df.copy()
     cols_lst = model_cols.copy()
@@ -675,7 +670,9 @@ def process_input_features_for_model(df, model_cols, stratify_variables=[], MIC_
     # remove the stratify covariates from cols_lst. This is mainly for the HIV_CD4 variable, which gets changed due to having more than 2 levels
     cols_lst = list(set(cols_lst) - set(stratify_variables))
 
-    df_model['high_lung_involvement'] = (df_model['predicted_PLI'] > 20).astype(int)
+    if 'high_lung_involvement' in model_cols:
+        df_model = df_model.dropna(subset='predicted_PLI')
+        df_model['high_lung_involvement'] = (df_model['predicted_PLI'] > PLI_thresh).astype(int)
 
     # this is the imputed smear grade sample 1. Mapping using smear_encoding_dict has already been done
     if 'smear_grade_1' in df_model.columns:
@@ -798,7 +795,7 @@ def process_input_features_for_model(df, model_cols, stratify_variables=[], MIC_
 
 
 
-def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False):
+def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], number_nonlinear_knots=3, knots_tup=None, interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False, PLI_thresh=20):
     
     # the penalize_features argument is not used, but I wanted to keep the arguments the same for both the fit_cox_hazard_ratio_model and fit_cox_hazard_ratio_model_with_L2_penalty functions
     
@@ -811,7 +808,8 @@ def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MI
                                                                         binarize_drugs=binarize_drugs, 
                                                                         interact_MIC_lineage=interact_MIC_lineage,
                                                                         interact_indel_change_lineage=interact_indel_change_lineage,
-                                                                        binary_lineage=binary_lineage
+                                                                        binary_lineage=binary_lineage,
+                                                                        PLI_thresh=PLI_thresh
                                                                        )
     
     # Add outcome data
@@ -859,8 +857,12 @@ def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MI
         if variable in features_lst:
             lb = non_linear_term_vars_min[i]
             ub = non_linear_term_vars_max[i]
-            k = len(np.arange(lb, ub+1))
-            model_formula += f" + bs({variable}, df={k}, lower_bound={lb}, upper_bound={ub}, degree=3)"
+            
+            # degrees of freedom = number of internal knots (specified by the knots argument) + degree
+            if knots_tup is not None:
+                model_formula += f" + bs({variable}, knots={knots_tup}, lower_bound={lb}, upper_bound={ub}, degree={number_nonlinear_knots-len(knots_tup)})"
+            else:
+                model_formula += f" + bs({variable}, df={number_nonlinear_knots}, lower_bound={lb}, upper_bound={ub}, degree={number_nonlinear_knots})"
             
     # if there are no variables to stratify by, the argument must be None, per the Cox model function
     if len(stratify_variables) == 0:
@@ -907,10 +909,7 @@ def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MI
 
 
 
-
-def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False):
-    
-    # the penalize_features argument is not used, but I wanted to keep the arguments the same for both the fit_cox_hazard_ratio_model and fit_cox_hazard_ratio_model_with_L2_penalty functions
+def fit_cox_hazard_ratio_model_with_single_penalty(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type='L2', penalize_features=[], binary_lineage=False, PLI_thresh=20):
     
     # Process input features
     df_model_processed, features_lst = process_input_features_for_model(df, 
@@ -921,115 +920,8 @@ def fit_cox_hazard_ratio_model(df, df_outcome, cols_lst, event_col, time_col, MI
                                                                         binarize_drugs=binarize_drugs, 
                                                                         interact_MIC_lineage=interact_MIC_lineage,
                                                                         interact_indel_change_lineage=interact_indel_change_lineage,
-                                                                        binary_lineage=binary_lineage
-                                                                       )
-    
-    # Add outcome data
-    df_model_processed = df_model_processed.merge(df_outcome, on='pid')
-    df_model_processed_save = df_model_processed.copy()
-
-    # remove any columns that are the same everywhere to reduce model fitting time
-    remove_cols = df_model_processed.columns[df_model_processed.nunique() == 1]
-    # print(f"    Removing features {remove_cols} because they are the same everywhere")
-    features_lst = list(set(features_lst) - set(remove_cols))
-
-    # keep track of these for un-normalizing the final odds ratios
-    means_dict = dict(df_model_processed[features_lst].mean(axis=0))
-    std_dict = dict(df_model_processed[features_lst].std(axis=0))
-    
-    # Normalize features
-    scaler = StandardScaler()
-    df_model_processed[features_lst] = scaler.fit_transform(df_model_processed[features_lst])
-
-    cph = lifelines.CoxPHFitter()
-    
-#     for col in features_lst + [time_col, event_col, 'unique_patient']:
-#         num_na = sum(pd.isnull(df_model_processed[col]))
-
-#         if num_na > 0:
-#             print(col, num_na, df_model_processed.loc[pd.isnull(df_model_processed[col])])
-
-    # need to define the cubic basis splines with a formula call to fit(). Use the training dataframe to get the bounds because it will have had log-transforms and standard scaling done to it
-    non_linear_term_vars_min = [int(np.floor(df_model_processed[variable].min())) for variable in non_linear_term_variables]
-    non_linear_term_vars_max = [int(np.ceil(df_model_processed[variable].max())) for variable in non_linear_term_variables]
-
-    # remove them from the features list
-    linear_term_variables = list(set(features_lst) - set(non_linear_term_variables))
-
-    # if you're stratifying by categorical variables, have to remove them from the formula
-    linear_term_variables = list(set(linear_term_variables) - set(stratify_variables))
-
-    # combine the features without non-linear terms into a string
-    model_formula = " + ".join(linear_term_variables).strip(' ')
-
-    # add the variables with potential non-linear effects to the formula
-    # lifelines uses cubic splines, which is the default because you get smoothness but also not too many parameters
-    # degrees of freedom = k + d, where d is the polynomial degree (in this case, 3) and k is the number of values in the interval being tested
-    for i, variable in enumerate(non_linear_term_variables):
-        if variable in features_lst:
-            lb = non_linear_term_vars_min[i]
-            ub = non_linear_term_vars_max[i]
-            k = len(np.arange(lb, ub+1))
-            model_formula += f" + bs({variable}, df={k}, lower_bound={lb}, upper_bound={ub}, degree=3)"
-            
-    # if there are no variables to stratify by, the argument must be None, per the Cox model function
-    if len(stratify_variables) == 0:
-        stratify_variables = None
-        
-    cph.fit(df_model_processed,
-            duration_col=time_col, 
-            event_col=event_col, 
-            cluster_col=cluster_col,
-            fit_options={'step_size': 0.1},
-            strata=stratify_variables,
-            formula=model_formula
-           )
-    
-    # Get results
-    df_model_results = cph.summary
-
-    # Last step: undo the variable transformations. First, we log2-transformed, then standard-scaled. So have to undo in the reverse order
-    # 1) Undo the standard-scaling
-    df_model_results['original_mean'] = df_model_results.index.map(means_dict)
-    df_model_results['original_std'] = df_model_results.index.map(std_dict)
-
-    # have to add in the mean and std (from the original variables) to each spline of the non linear variables
-    for variable in non_linear_term_variables:
-        df_model_results.loc[df_model_results.index.str.contains(variable), 'original_mean'] = means_dict[variable]
-        df_model_results.loc[df_model_results.index.str.contains(variable), 'original_std'] = std_dict[variable]
-    
-    df_model_results['coef_transformed'] = df_model_results['coef'] / df_model_results['original_std']
-    df_model_results['se_transformed'] = df_model_results['se(coef)'] / df_model_results['original_std']
-
-    # 2) Undo the log2-transform for the variables that were log2-transformed
-    # To do this, exponentiate the coefficients, so 2**coef. SE is approximately ln(2) * 2**coef * SE(coef)
-    log_transform_cols = np.unique(log_metadata_vars + [col for col in features_lst if col.endswith('_pred_MIC') or col.endswith('_midpoint')])
-
-    # the current coefficient is the factor increase if the value is multiplied by the base. i.e. if log2-transformed with beta = 2, then a doubling of x leads to a 2 * 2 = 4 multiplier on the log HR
-    # so to scale it to the original scale, you would multiply by the base of the logarithm you took
-    df_model_results.loc[df_model_results.index.isin(log_transform_cols), 'coef_transformed'] = 2 * df_model_results.loc[df_model_results.index.isin(log_transform_cols)]['coef_transformed'] #np.exp(df_model_results.loc[df_model_results.index.isin(log_transform_cols)]['coef_transformed'])
-
-    # is it the same transformation?
-    df_model_results.loc[df_model_results.index.isin(log_transform_cols), 'se_transformed'] = 2 * df_model_results.loc[df_model_results.index.isin(log_transform_cols)]['se_transformed'] 
-
-    return df_model_results, df_model_processed, cph
-
-
-
-
-
-def fit_cox_hazard_ratio_model_with_single_penalty(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type='L2', penalize_features=[], binary_lineage=False):
-    
-    # Process input features
-    df_model_processed, features_lst = process_input_features_for_model(df, 
-                                                                        cols_lst, 
-                                                                        stratify_variables=stratify_variables, 
-                                                                        MIC_type=MIC_type, 
-                                                                        include_drugs=include_drugs, 
-                                                                        binarize_drugs=binarize_drugs, 
-                                                                        interact_MIC_lineage=interact_MIC_lineage,
-                                                                        interact_indel_change_lineage=interact_indel_change_lineage,
-                                                                        binary_lineage=binary_lineage
+                                                                        binary_lineage=binary_lineage,
+                                                                        PLI_thresh=PLI_thresh
                                                                        )
         
     # Add outcome data. Reset index so that indices are in the appropriate order for straitifed k-fold CV
@@ -1183,7 +1075,7 @@ def fit_cox_hazard_ratio_model_with_single_penalty(df, df_outcome, cols_lst, eve
 
 
 
-def fit_cox_hazard_ratio_model_with_ElasticNet(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False):
+def fit_cox_hazard_ratio_model_with_ElasticNet(df, df_outcome, cols_lst, event_col, time_col, MIC_type='none', include_drugs=drugs_lst, binarize_drugs=[], stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False, PLI_thresh=20):
     
     # Process input features
     df_model_processed, features_lst = process_input_features_for_model(df, 
@@ -1194,7 +1086,8 @@ def fit_cox_hazard_ratio_model_with_ElasticNet(df, df_outcome, cols_lst, event_c
                                                                         binarize_drugs=binarize_drugs, 
                                                                         interact_MIC_lineage=interact_MIC_lineage,
                                                                         interact_indel_change_lineage=interact_indel_change_lineage,
-                                                                        binary_lineage=binary_lineage
+                                                                        binary_lineage=binary_lineage,
+                                                                        PLI_thresh=PLI_thresh
                                                                        )
         
     # Add outcome data. Reset index so that indices are in the appropriate order for straitifed k-fold CV
@@ -1349,7 +1242,7 @@ def fit_cox_hazard_ratio_model_with_ElasticNet(df, df_outcome, cols_lst, event_c
 
 
 
-def fit_cox_models_all_imputations(df_trust_patients, df_pred_combined, TRUST_phenos, df_outcome, cols_lst, event_col, time_col, alpha=0.05, invert_OR=True, exclude_resistance=False, MIC_type=None, include_drugs=[], binarize_drugs=[], tb_deaths_only=False, stratify_variables=[], non_linear_term_variables=[], interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False):
+def fit_cox_models_all_imputations(df_trust_patients, df_pred_combined, TRUST_phenos, df_outcome, cols_lst, event_col, time_col, alpha=0.05, invert_OR=True, exclude_resistance=False, MIC_type=None, include_drugs=[], binarize_drugs=[], tb_deaths_only=False, stratify_variables=[], non_linear_term_variables=[], number_nonlinear_knots=3, knots_tup=None, interact_MIC_lineage=False, interact_indel_change_lineage=False, cluster_col=None, penalty_type=None, penalize_features=[], binary_lineage=False, PLI_thresh=20):
 
     coef_col = 'coef_transformed'
     se_col = 'se_transformed'
@@ -1440,12 +1333,15 @@ def fit_cox_models_all_imputations(df_trust_patients, df_pred_combined, TRUST_ph
                                                                binarize_drugs=binarize_drugs,
                                                                stratify_variables=stratify_variables,
                                                                non_linear_term_variables=non_linear_term_variables,
+                                                               number_nonlinear_knots=number_nonlinear_knots,
+                                                               knots_tup=knots_tup,
                                                                interact_MIC_lineage=interact_MIC_lineage, 
                                                                interact_indel_change_lineage=interact_indel_change_lineage,
                                                                cluster_col=cluster_col,
                                                                penalty_type=penalty_type,
                                                                penalize_features=penalize_features,
-                                                               binary_lineage=binary_lineage
+                                                               binary_lineage=binary_lineage,
+                                                               PLI_thresh=PLI_thresh
                                                              )
                 
         # save all the models for checking the proportional hazards assumptions
@@ -1685,12 +1581,12 @@ def compute_relative_risk_single_imputation(df, variable):
 
 
 
-def compute_relative_risk_with_confidence_interval_on_imputations(df_trust_patients, df_TCC_imputed_all, variable):
+def compute_relative_risk_with_confidence_interval_on_imputations(df_trust_patients, df_TCC_imputed_all, variable, PLI_thresh):
     
     # include all imputations
     df_for_RR_calculation = df_trust_patients.merge(df_TCC_imputed_all.query("imp_num > 0"))
 
-    df_for_RR_calculation['high_lung_involvement'] = (df_for_RR_calculation['predicted_PLI'] > 20)
+    df_for_RR_calculation['high_lung_involvement'] = (df_for_RR_calculation['predicted_PLI'] > PLI_thresh)
     df_for_RR_calculation = df_for_RR_calculation.dropna(subset=cols_lst)
     df_for_RR_calculation['high_lung_involvement'] = df_for_RR_calculation['high_lung_involvement'].astype(int)
 
@@ -1747,14 +1643,15 @@ def rubins_rules_relative_risk(log_estimates, stderr_log_estimates, alpha=0.05):
 
 
 
-def fit_poisson_regression_single_imputation(df, df_outcome, cols_lst, outcome_variable, binary_lineage=True):
+def fit_poisson_regression_single_imputation(df, df_outcome, cols_lst, outcome_variable, binary_lineage=True, PLI_thresh=20):
     
     # Process input features
     df_model_processed, features_lst = process_input_features_for_model(df, 
                                                                         cols_lst, 
                                                                         stratify_variables=[], # don't stratify because the function will process the variables for model fitting
                                                                         MIC_type='none', # fit without MICs for this
-                                                                        binary_lineage=binary_lineage
+                                                                        binary_lineage=binary_lineage,
+                                                                        PLI_thresh=PLI_thresh
                                                                        )
     
     # Add outcome data

@@ -1,3 +1,4 @@
 RefGenome_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/H37Rv_NC_000962.3.fna'
-output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_mixed_infection_HP"
-inputSampleData: "/home/sak0914/MtbLongitudinalDiversity/haplotype_phasing/LR_multiple_tbtyper_lineages.csv"
+# output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_mixed_infection_HP"
+output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/Rv2082_duplication/genomes"
+inputSampleData: "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/data/Max_addl_genomes.csv"

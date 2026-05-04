@@ -12,7 +12,7 @@ def fasta_length(path):
     return length
 
 
-def apply_freebayes_lowAF_QCfilters(df_variants, DP=True, AF_min=0.05, AF_max=0.98, MQ_thresh=40, num_support_each_direction=2):
+def apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.95, MQ_thresh=40, num_support=5, forward_reverse_support=2):
     '''
     Use 0.98 when doing the validaiton using the personal ref genomes because if there's a variant present at 100% relative to H37Rv, there won't be a variant when called against the
     personal reference genome because it's purely the nucleotide in the assembly. 
@@ -22,110 +22,155 @@ def apply_freebayes_lowAF_QCfilters(df_variants, DP=True, AF_min=0.05, AF_max=0.
     
     # add AF column
     df_variants['AF'] = df_variants['AO'] / df_variants['DP']
+    df_variants['AF'] = df_variants['AF'].astype(float)
     
-    if DP:
-        df_lowAF_variants = df_variants.query("DP >= 5 & AF >= @AF_min & AF <= @AF_max & MQM >= @MQ_thresh")
-    else:
-        df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max & MQM >= @MQ_thresh")
+    df_variants['AF_rounded'] = np.round(df_variants['AF'], 2)
+    
+    df_lowAF_variants = df_variants.query("(AF >= @AF_min | AF_rounded >= @AF_min) & AF <= @AF_max")
+    # df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max")
+    
+    df_lowAF_variants = df_lowAF_variants.query("MQM >= @MQ_thresh & AO >= @num_support")
 
     df_lowAF_variants = pd.concat([df_lowAF_variants.query("(REF.str.len() - ALT.str.len() > 10)"),
-                                   df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & SAF >= @num_support_each_direction & SAR >= @num_support_each_direction")
+                                   df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & AO >= @num_support")
                                   ])    
+    
+    df_lowAF_variants = df_lowAF_variants.query("SAF >= @forward_reverse_support & SAR >= @forward_reverse_support")
     
     return df_lowAF_variants.reset_index(drop=True)
 
 
 
 
-def apply_pilon_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.98, MQ_thresh=40, num_support=5):
+def apply_pilon_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.95, MQ_thresh=40, num_support=5):
     '''
     For columns BC and QP, the order of values is A,C,G,T
     '''
-    
-    df_variants['IMPRECISE'] = df_variants['IMPRECISE'].astype(int)
-    
-    # exclude imprecise variants, low depth, and low mappability. Filtering first speeds up the next step
+        
     # some variants could have high IC or DC in mixed lineage samples. One strain may have the SNP and another may have the deletion
-    # idk, we would still need to separate them before being confidence in the variants
-    df_variants = df_variants.query("DP >= 5 & MQ >= @MQ_thresh & IMPRECISE == 0").query("REF.str.len() == ALT.str.len()")
+    # idk, we would still need to separate them before being confident in the variants
+    df_variants = df_variants.query("MQ >= @MQ_thresh").query("REF.str.len() == ALT.str.len()")
     
-    # add the number of bases supporting the alternative allele and AF
-    df_variants = add_ALT_allele_base_counts_to_df(df_variants)
+    # some variants lie near the 0.05 threshold. If the AF rounds to 0.05 (at two sig figs), keep it too
+    df_variants['AF_rounded'] = np.round(df_variants['AF'], 2)
     
     # AF thresholding 
-    df_lowAF_variants = df_variants.query("AF >= @AF_min & AF <= @AF_max")
+    df_lowAF_variants = df_variants.query("(AF >= @AF_min | AF_rounded >= @AF_min) & AF <= @AF_max")
     
-    df_lowAF_variants = pd.concat([df_lowAF_variants.query("(REF.str.len() - ALT.str.len() > 10)"),
-                                   df_lowAF_variants.query("~(REF.str.len() - ALT.str.len() > 10) & ALT_read_count >= @num_support")
-                                  ])    
+    if 'AO' in df_lowAF_variants.columns:
+        assert sum(pd.isnull(df_lowAF_variants['AO'])) == 0
     
+        # added after processing the output of the get_alt_allele function
+        df_lowAF_variants = df_lowAF_variants.query("AO >= @num_support")
+
     return df_lowAF_variants.reset_index(drop=True)
 
 
 
-
-def add_ALT_allele_base_counts_to_df(df):
+def read_pilon_vcf(vcf_path):
     
-    df = df.reset_index(drop=True)
+    # XC is the number of clipped bases at the site
+    keep_cols = ['CHROM', 'POS', 'REF', 'ALT', 'QUAL', 'FILTER', 'DP', 'TD', 'BQ', 'MQ', 'BC', 'IC', 'DC', 'XC', 'AF']
+
+    records = []
+    info_keys = set()
+    format_keys = set()
+
+    with open(vcf_path) as f:
+        for line in f:
+            line = line.strip()
+
+            # Skip meta-information
+            if line.startswith("##"):
+                continue
+
+            # Header line
+            if line.startswith("#CHROM"):
+                header = line.lstrip("#").split("\t")
+                continue
+
+            # Variant line
+            fields = dict(zip(header, line.split("\t")))
+
+            # --------------------
+            # Parse INFO field
+            # --------------------
+            info_dict = {}
+            for item in fields["INFO"].split(";"):
+                if "=" in item:
+                    k, v = item.split("=", 1)
+                    info_dict[k] = v
+                else:
+                    # Flag field (e.g. IMPRECISE)
+                    info_dict[item] = True
+
+            info_keys.update(info_dict.keys())
+
+            # --------------------
+            # Parse FORMAT field(s)
+            # --------------------
+            format_dict = {}
+            if "FORMAT" in fields:
+                fmt_keys = fields["FORMAT"].split(":")
+                sample_cols = [c for c in header if c not in {
+                    "CHROM","POS","ID","REF","ALT","QUAL","FILTER","INFO","FORMAT"
+                }]
+
+                for sample in sample_cols:
+                    fmt_vals = fields[sample].split(":")
+                    for k, v in zip(fmt_keys, fmt_vals):
+                        format_dict[f"{sample}_{k}"] = v
+                        format_keys.add(f"{sample}_{k}")
+
+            # --------------------
+            # Combine everything
+            # --------------------
+            base = {
+                "CHROM": fields["CHROM"],
+                "POS": int(fields["POS"]),
+                "REF": fields["REF"],
+                "ALT": fields["ALT"],
+                "QUAL": None if fields["QUAL"] == "." else float(fields["QUAL"]),
+                "FILTER": fields["FILTER"],
+            }
+
+            record = {**base, **info_dict, **format_dict}
+            records.append(record)
+
+    # --------------------
+    # Build DataFrame
+    # --------------------
+    df = pd.DataFrame(records)
+
+    # Ensure all INFO / FORMAT columns exist even if missing in some rows
+    for col in info_keys.union(format_keys):
+        if col not in df.columns:
+            df[col] = pd.NA
+
+    return df[keep_cols].reset_index(drop=True)
+
+
+
+
+def get_alt_allele(BC_string, ref_allele, base_order=['A', 'C', 'G', 'T']):
+    '''
+    Already filtered the VCF to require there to be at least 5 non-REF reads, so there will be an ALT allele
+    '''
     
-    for i, row in df.iterrows():
-        
-        ref_allele = row['REF']
-        alt_allele = row['ALT']
-        BC_string = row['BC']
-        IC = row['IC']
-        DC = row['DC']
-
-        BC_lst = np.array(BC_string.split(',')).astype(int)
-
-        bases_lst = np.array(['A', 'C', 'G', 'T'])
-
-        # these are below pilon's threshold for returning variants, but every row has at least 2 bases with a non-zero value in the BC column, so there IS another allele
-        if alt_allele == '.':
-
-            # reduce it to the biallelic case, so take only the highest and second highest AF
-            present_alleles = bases_lst[np.argwhere(BC_lst != 0).flatten()]
-
-            # do that by zeroing out the other BCs. Keep only those that are at least the value of the 
-            BC_lst = np.array([val if val >= np.sort(BC_lst)[-2] else 0 for val in BC_lst])
-
-            # if there is no ALT allele, then REF must be in this list
-            assert ref_allele in present_alleles
-
-            # then assign the minor one to be the ALT allele
-            minor_idx = np.argwhere((BC_lst != np.max(BC_lst)) & (BC_lst != 0)).flatten()
-
-            # then this should be of length 1 because we zeroed the ones not in the top two and also required that it's not equal to the maximum (major allele) 
-            # if it's not length 1, then there were multiple minor alleles at the same DP 
-            # it's probably noise because the probability of that actually happening is really low
-            # but randomly pick one if that's the case
-            if len(minor_idx) > 1:
-                # print(i, minor_idx, present_alleles, BC_lst)
-                minor_idx = np.random.choice(minor_idx)
-            else:
-                assert len(minor_idx) == 1
-                minor_idx = minor_idx[0]
-
-            # edit the dataframe
-            df.loc[i, ['ALT', 'ALT_read_count']] = [bases_lst[minor_idx], BC_lst[minor_idx]]
-
-        # this is the easy case if the allele is present at high enough frequency that pilon finds it as an allele
-        elif alt_allele in bases_lst:
-            
-            keep_idx = list(bases_lst).index(alt_allele)
-            
-            df.loc[i, 'ALT_read_count'] = BC_lst[keep_idx]
-        
-        # indels won't have a read support value. It will be in IC or DC, so use that
-        else:
-            if len(alt_allele) > len(ref_allele):
-                df.loc[i, 'ALT_read_count'] = IC
-                
-            elif len(ref_allele) > len(alt_allele):
-                df.loc[i, 'ALT_read_count'] = DC
-                
-    df['AF'] = df['ALT_read_count'] / df['DP']
-    return df
+    alt_counts = np.array(BC_string.split(',')).astype(int)
+    
+    ref_idx = base_order.index(ref_allele)
+    ref_count = alt_counts[ref_idx]
+    
+    # sort after set subtraction. base order is in alpha order
+    non_ref_alleles = np.sort(list(set(base_order) - set([ref_allele])))
+    non_ref_counts = [count for i, count in enumerate(alt_counts) if i != ref_idx]
+    assert len(non_ref_counts) == len(alt_counts) - 1
+    
+    # if there are multiple ALT alleles with the same support, the first one in alpha-order is returned.
+    alt_allele = non_ref_alleles[np.argmax(non_ref_counts)]
+    
+    return alt_allele, np.max(non_ref_counts)#, ref_count
 
 
 
@@ -135,7 +180,11 @@ def save_table_of_soft_clips(sample, bam_file, ref_genome_file):
     
     genome_length = fasta_length(ref_genome_file)
     
-    bam = pysam.AlignmentFile(bam_file, "rb")
+    if bam_file[-4:] == '.bam':
+        bam = pysam.AlignmentFile(bam_file, "rb")
+    else:
+        bam = pysam.AlignmentFile(bam_file, "rc")
+    
     chrom = bam.references[0]
 
     records = []
@@ -253,20 +302,29 @@ def save_table_of_discordant_reads(sample, bam_file, ref_genome_file):
     
     genome_length = fasta_length(ref_genome_file)
     
-    bam = pysam.AlignmentFile(bam_file, "rb")
+    if bam_file[-4:] == '.bam':
+        bam = pysam.AlignmentFile(bam_file, "rb")
+    else:
+        bam = pysam.AlignmentFile(bam_file, "rc")
+        
     chrom = bam.references[0]
 
     records = []
     
     for read in bam.fetch():
 
-        # skip unmapped reads or those with secondary or supplementary alignments
-        if read.is_unmapped or read.is_secondary or read.is_supplementary:
+        # skip unpaired or unmapped reads or those with secondary or supplementary alignments
+        if not read.is_paired or read.is_unmapped or read.is_secondary or read.is_supplementary:
             continue
-
+            
         orientation = get_orientation(read)
+        
+        # require the insert size to be longer than the read length when counting discordant reads. If insert size < read length, discordant read determination is incorrect
+        # it's too aggressive in calling discordant reads because they might start within a few bp of each other        
+        insert_size = abs(read.template_length)
+        read_length = read.query_length
 
-        if orientation != 'LR':
+        if orientation != 'LR' and insert_size > read_length:
             
             # add 1 because it's 0-indexed half-open
             start = read.reference_start + 1
@@ -276,11 +334,12 @@ def save_table_of_discordant_reads(sample, bam_file, ref_genome_file):
         
             records.append({
                 "read_name": read.query_name,
+                "read_length": read_length,
                 "chrom": chrom,
                 "start": start,
                 "end": end,
                 "orientation": orientation,
-                "insert_size": abs(read.template_length)
+                "insert_size": insert_size
             })
 
     bam.close()
@@ -310,31 +369,303 @@ def save_table_of_discordant_reads(sample, bam_file, ref_genome_file):
     
 
 
-def compute_mean_base_quality_of_variant_support(bam_file, pos, low_freq_allele):
-    
-    bam = pysam.AlignmentFile(bam_file, "rb")
-    
+def compute_mean_base_quality_strand_support_of_variant(bam, pos, low_freq_allele, chrom='Chromosome'):
+        
     base_qualities_low_freq_allele = []
+    SAF = 0
+    SAR = 0
 
     # default min_base_quality is 13, so bad reads get excluded, which negates the purpose of this function...rolls eyes. min_mapping_quality default is 0
-    for pileupcolumn in bam.pileup('Chromosome', pos-1, pos, truncate=True, min_base_quality=0):
+    # but use the mapping quality filter here
+    for pileupcolumn in bam.pileup(chrom, pos-1, pos, truncate=True, min_base_quality=0, min_mapping_quality=30):
 
         for pileupread in pileupcolumn.pileups:
             if pileupread.is_del or pileupread.is_refskip:
                 continue  # skip deletions and skipped regions
 
-            base = pileupread.alignment.query_sequence[pileupread.query_position]
-            qual = pileupread.alignment.query_qualities[pileupread.query_position]
+            aln = pileupread.alignment
 
-            if base == low_freq_allele:
-                base_qualities_low_freq_allele.append(qual)
+            if not aln.is_secondary and not aln.is_supplementary and aln.is_paired and aln.is_proper_pair:
+    
+                base = aln.query_sequence[pileupread.query_position]
+                base_qual = aln.query_qualities[pileupread.query_position]
+                # map_qual = aln.mapping_quality
 
-    return np.mean(base_qualities_low_freq_allele)
+                # include only properly paired reads when computing strand bias and base quality
+                if base == low_freq_allele:
+                    base_qualities_low_freq_allele.append(base_qual)
+
+                    # only include reads in the SAF and SAR count if they meet base and mapping quality minimums
+                    # this is to emulate freebayes behavior, where we use BQ ≥ 30 and MQ ≥ 30
+                    if base_qual >= 30:# and map_qual >= 30:
+                        if aln.is_reverse:
+                            SAR += 1
+                        else:
+                            SAF += 1
+                
+    # no reads passed
+    if len(base_qualities_low_freq_allele) == 0:
+        return 0, SAF, SAR
+    else:
+        return np.mean(base_qualities_low_freq_allele), SAF, SAR
+    
+    
+    
+    
+def compute_mean_base_quality_of_variant_support(bam, pos, low_freq_allele, chrom='Chromosome'):
+        
+    base_qualities_low_freq_allele = []
+
+    # default min_base_quality is 13, so bad reads get excluded, which negates the purpose of this function...rolls eyes. min_mapping_quality default is 0
+    # but use the mapping quality filter here
+    for pileupcolumn in bam.pileup(chrom, pos-1, pos, truncate=True, min_base_quality=0, min_mapping_quality=30):
+
+        for pileupread in pileupcolumn.pileups:
+            if pileupread.is_del or pileupread.is_refskip:
+                continue  # skip deletions and skipped regions
+
+            aln = pileupread.alignment
+
+            if not aln.is_secondary and not aln.is_supplementary and aln.is_paired and aln.is_proper_pair:
+    
+                base = aln.query_sequence[pileupread.query_position]
+                base_qual = aln.query_qualities[pileupread.query_position]
+                # map_qual = aln.mapping_quality
+
+                # include only properly paired reads when computing strand bias and base quality
+                if base == low_freq_allele:
+                    base_qualities_low_freq_allele.append(base_qual)
+                
+    # no reads passed
+    if len(base_qualities_low_freq_allele) == 0:
+        return 0
+    else:
+        return np.mean(base_qualities_low_freq_allele)
 
 
 
 
-def get_allele_type(record, AF_min=0, AF_max=0.9):
+def get_number_of_soft_clipped_reads_and_variant_location_in_reads(df, bam, chrom='Chromosome'):
+    '''
+    This function computes the number of reads that support a particular SNV that also have soft clipping.
+    The soft clipping is not necessarily at the site of the substitution.
+
+    It can be elsewhere in the read, but if a large number of reads supporting an SNV have soft clipping,
+    then there's probably an indel nearby, leading to the clipping, and therefore the substitution is not real.
+    '''
+
+    df = df.reset_index(drop=True)
+    
+    for i, row in df.iterrows():
+
+        pos = int(row['POS'])   # 1-based
+        ref = row['REF']
+        alt = row['ALT']
+
+        num_soft_clipped_reads = 0
+
+        # list to store the position indexes within each read that support the alternative allele
+        variant_idx_in_read = []
+
+        for pileupcolumn in bam.pileup(
+            chrom,
+            pos - 1,
+            pos,
+            truncate=True,
+            min_base_quality=0,
+            min_mapping_quality=30
+        ):
+
+            for pileupread in pileupcolumn.pileups:
+
+                # Skip deletions / ref skips at this position
+                if pileupread.is_del or pileupread.is_refskip:
+                    continue
+
+                read = pileupread.alignment
+
+                # exclude reads with supplementary alignments, secondary alignments, or are discordantly paired
+                if read.is_supplementary or read.is_secondary:
+                    continue
+                
+                if read.is_paired and read.is_proper_pair:
+
+                    # query_position is guaranteed to be valid here
+                    read_supported_allele = read.query_sequence[pileupread.query_position]
+
+                    # don't need base quality because we already have another variable that is the
+                    # average base quality of nucleotides that support the variant
+                    # read_pos_BQ = read.query_qualities[pileupread.query_position]
+
+                    if read_supported_allele == alt:
+                    
+                        # get number of bases soft clipped from this read
+                        num_soft_clipped_bases = sum(length for (op, length) in (read.cigartuples or []) if op == 4)
+
+                        if num_soft_clipped_bases > 0:
+                            num_soft_clipped_reads += 1
+
+                        # normalized to read length
+                        read_length = read.query_length
+                        variant_idx_length_norm = pileupread.query_position / read_length
+
+                        # Normalize to the halfway point of the read because close to either of the ends is bad.
+                        # Beginning or end of the read doesn't matter, just the distance from the end.
+                        # This variable ranges from 0–0.5. Closer to 0.5 is better.
+                        if variant_idx_length_norm <= 0.5:
+                            variant_idx_in_read.append(variant_idx_length_norm)
+                        else:
+                            variant_idx_in_read.append(1 - variant_idx_length_norm)                        
+
+#         # weird edge cases when you have an indel and an SNV nearby, the alternate allele can be a little wonky
+#         # because different reads may have different nucleotides inserted vs. substituted
+#         # but they all support the same net change. It's just bookkeeping
+#         # so iterate again, this time allowing read_supported_allele to just be not REF
+#         if len(variant_idx_in_read) == 0:
+            
+#             # an example is 3462145 in MFS-273. There's an insertion close to the SNV. The insertion is truly fixed, and the SNV is truly unfixed
+#             # depending on where you put the insertion (and the insertions on reads with the SNV are slightly different reads without the SNV), the SNV is different
+#             print(f"Weird case at {pos}, {ref}, {alt}")
+            
+#             # reinitialize to be safe
+#             num_soft_clipped_reads = 0
+#             variant_idx_in_read = []
+
+#             for pileupcolumn in bam.pileup(
+#                 chrom,
+#                 pos - 1,
+#                 pos,
+#                 truncate=True,
+#                 min_base_quality=0,
+#                 min_mapping_quality=30
+#             ):
+                
+#                 for pileupread in pileupcolumn.pileups:
+
+#                     # Skip deletions / ref skips at this position
+#                     if pileupread.is_del or pileupread.is_refskip:
+#                         continue
+
+#                     read = pileupread.alignment
+
+#                     # exclude reads with supplementary alignments, secondary alignments, or are discordantly paired
+#                     if read.is_supplementary or read.is_secondary:
+#                         continue
+
+#                     if read.is_paired and read.is_proper_pair:
+
+#                         # query_position is guaranteed to be valid here
+#                         read_supported_allele = read.query_sequence[pileupread.query_position]
+
+#                         if read_supported_allele != ref:
+                                                    
+#                             # get number of bases soft clipped from this read
+#                             num_soft_clipped_bases = sum(length for (op, length) in (read.cigartuples or []) if op == 4)
+
+#                             if num_soft_clipped_bases > 0:
+#                                 num_soft_clipped_reads += 1
+
+#                             # normalized to read length
+#                             read_length = read.query_length
+#                             variant_idx_length_norm = pileupread.query_position / read_length
+
+#                             # Normalize to the halfway point of the read because close to either of the ends is bad.
+#                             # Beginning or end of the read doesn't matter, just the distance from the end.
+#                             # This variable ranges from 0–0.5. Closer to 0.5 is better.
+#                             if variant_idx_length_norm <= 0.5:
+#                                 variant_idx_in_read.append(variant_idx_length_norm)
+#                             else:
+#                                 variant_idx_in_read.append(1 - variant_idx_length_norm)
+                            
+        # count the number of reads with ANY bases soft-clipped and take the median normalized index
+        df.loc[i, ['NumSoftClippedReads', 'VariantSupportMedianIndex']] = [num_soft_clipped_reads, np.median(variant_idx_in_read)]
+
+    df['NumSoftClippedReads'] = df['NumSoftClippedReads'].astype(int)
+    return df
+
+
+
+
+# def get_allele_type(record, AF_min=0, AF_max=0.9):
+#     '''
+#     Returns "alt" or "ref" if the variant is low-quality or ambiguous. Otherwise this function returns "missing"
+    
+#     Low-quality criteria:
+    
+#         1. FILTER == Del, LowCov
+#         2. FILTER == Amb and 0.25 < AF <= 0.75
+#         3. SNP quality < 10
+
+#     Criteria for not confident in a variant or can not be reliably inserted, so leave it as reference:
+
+#         1. IMPRECISE variant (in the INFO field)
+#         2. Indels longer than 15 bp where neither the REF nor the ALT are of length 1 (this case is handled in the next function)
+        
+#     If FILTER contains Amb and the alternative allele fraction > presentThresh, then it is a pure alternative call. 
+#     '''
+
+#     ref_allele = str(record.REF)
+#     alt_allele = "".join(np.array(record.ALT).astype(str))
+
+#     # this should not happen in pilon because it is not a haplotype variant caller
+#     # this would mean that there are 3 alleles present -- reference + 2 alternative alleles
+#     # haplotype variant callers will often have reference and alternative haplotypes separated by a comma in the ALT field, so this script will not work for them
+#     if ',' in alt_allele:
+#         print(fName, record)
+#         raise ValueError(f"There are multiple alternative alleles in a single record!")
+
+#     # fill in things that might be missing
+#     if "AF" in record.INFO.keys() and "DP" in record.INFO.keys():
+# #         AO_lst = record.INFO["AO"]
+
+# #         # multiple alternative alleles. Ignore them in this particular check
+# #         if len(AO_lst) > 1:
+# #             return "missing"
+# #         else:
+# #             AF = AO_lst[0] / record.INFO['DP']
+
+#         alt_base_count = np.max(record.INFO['BC'])
+#         AF = alt_base_count / record.INFO['DP']
+#     else:
+#         raise ValueError(f"AF or DP is not in the VCF record for POS = {record.POS}") 
+
+#     # QUAL field considers read depth, base quality, mapping quality. But it is also on the Phred scale
+#     if record.QUAL is None:
+#         qual = 11
+#     else:
+#         qual = record.QUAL
+        
+#     # because IMPRECISE is taken care of above, this should only return missing for cases where REF = N or ALT = N
+#     if "N" in ref_allele or "N" in alt_allele:
+#         return "missing"
+    
+#     # check if there are any non alphanumeric characters. This would indicate a heterogeneous alternative allele
+#     if not alt_allele.isalnum():
+#         return "missing" 
+        
+#     # base quality, mapping quality, and read depth (measures of certainty about a variant)
+#     if 'DP' in record.INFO.keys():
+#         if record.INFO['DP'] < 5:
+#             return 'missing'
+
+#     if 'MQM' in record.INFO.keys():
+#         if len(record.INFO['MQM']) > 1:
+#             return "missing"
+#         else:
+#             if record.INFO['MQM'][0] < 30:
+#                 return 'missing'
+
+#     if AF >= AF_min and AF <= AF_max:
+#         return "intermediate"
+    
+#     elif AF < AF_min:
+#         return "ref"
+    
+#     else:
+#         return "fixed"
+
+
+def get_allele_type(record, AF_min=0.05, AF_max=0.95):
     '''
     Returns "alt" or "ref" if the variant is low-quality or ambiguous. Otherwise this function returns "missing"
     
@@ -353,52 +684,16 @@ def get_allele_type(record, AF_min=0, AF_max=0.9):
     '''
 
     ref_allele = str(record.REF)
-    alt_allele = "".join(np.array(record.ALT).astype(str))
-
-    # this should not happen in pilon because it is not a haplotype variant caller
-    # this would mean that there are 3 alleles present -- reference + 2 alternative alleles
-    # haplotype variant callers will often have reference and alternative haplotypes separated by a comma in the ALT field, so this script will not work for them
-    if ',' in alt_allele:
-        print(fName, record)
-        raise ValueError(f"There are multiple alternative alleles in a single record!")
-
-    # fill in things that might be missing
-    if "AO" in record.INFO.keys() and "DP" in record.INFO.keys():
-        AO_lst = record.INFO["AO"]
-
-        # multiple alternative alleles. Ignore them in this particular check
-        if len(AO_lst) > 1:
-            return "missing"
-        else:
-            AF = AO_lst[0] / record.INFO['DP']
-    else:
-        raise ValueError(f"AO or DP is not in the VCF record for POS = {record.POS}") 
-
-    # QUAL field considers read depth, base quality, mapping quality. But it is also on the Phred scale
-    if record.QUAL is None:
-        qual = 11
-    else:
-        qual = record.QUAL
-        
-    # because IMPRECISE is taken care of above, this should only return missing for cases where REF = N or ALT = N
-    if "N" in ref_allele or "N" in alt_allele:
-        return "missing"
     
-    # check if there are any non alphanumeric characters. This would indicate a heterogeneous alternative allele
-    if not alt_allele.isalnum():
-        return "missing" 
-        
-    # base quality, mapping quality, and read depth (measures of certainty about a variant)
-    if 'DP' in record.INFO.keys():
-        if record.INFO['DP'] < 5:
-            return 'missing'
-
-    if 'MQM' in record.INFO.keys():
-        if len(record.INFO['MQM']) > 1:
-            return "missing"
-        else:
-            if record.INFO['MQM'][0] < 30:
-                return 'missing'
+    base_lst = ['A', 'C', 'G', 'T']
+    
+    # fill in things that might be missing
+    if "AF" in record.INFO.keys() and "DP" in record.INFO.keys():
+        alt_base_count = np.max(record.INFO['BC'])
+        AF = alt_base_count / record.INFO['DP']
+        alt_allele = base_lst[np.argmax(record.INFO['BC'])]
+    else:
+        raise ValueError(f"AF or DP is not in the VCF record for POS = {record.POS}") 
 
     if AF >= AF_min and AF <= AF_max:
         return "intermediate"
@@ -407,38 +702,44 @@ def get_allele_type(record, AF_min=0, AF_max=0.9):
         return "ref"
     
     else:
-        return "fixed"
+        if ref_allele == alt_allele:
+            return "ref"
+        else:
+            return "fixed"
     
     
 
-def compute_sites_with_high_lowAF_SNP_density(SNPs_VCF_file, ref_genome_file, AF_min=0, AF_max=0.9, SNP_window_size=100):
-
-    genome_length = fasta_length(ref_genome_file)
+def compute_sites_with_high_lowAF_SNP_density(SNPs_CSV_file, SNPs_VCF_file_bgzipped, AF_min=0, AF_max=0.95, SNP_window_size=25):
     
+    df_candidate_vars = pd.read_csv(SNPs_CSV_file)
     df_SNPs = pd.DataFrame(columns = ['POS', 'SNP'])
     i = 0
     
-    vcf_reader = vcf.Reader(filename=SNPs_VCF_file)
+    # to save time, only check regions around the sites with variants in df_candidate_vars, instead of the full genome
+    min_pos = df_candidate_vars.POS.min()-SNP_window_size
+    max_pos = df_candidate_vars.POS.max()+SNP_window_size
+    
+    vcf_reader = vcf.Reader(filename=SNPs_VCF_file_bgzipped).fetch('Chromosome', start=min_pos, end=max_pos)
         
     for record in vcf_reader:
         snp_type = get_allele_type(record, AF_min=AF_min, AF_max=AF_max)
         df_SNPs.loc[i, :] = [record.POS, snp_type]
         i += 1
-    
+        
+    print(f"{i} variants")
+        
     df_SNPs = df_SNPs.query("SNP == 'intermediate'").drop_duplicates().reset_index(drop=True)
+    df_SNPs['SNP'] = 1
 
     # add the remaining sites to the dataframe
-    ref_sites = list(set(np.arange(1, genome_length+1)) - set(df_SNPs.POS))
+    ref_sites = list(set(np.arange(min_pos, max_pos+1)) - set(df_SNPs.POS))
     
     df_SNPs = pd.concat([df_SNPs,
-                         pd.DataFrame({'POS': ref_sites, 'SNP': 'ref'})
+                         pd.DataFrame({'POS': ref_sites, 'SNP': 0})
                         ]).sort_values("POS").reset_index(drop=True)
     
-    df_SNPs['SNP'] = df_SNPs['SNP'].map({'ref': 0, 'alt': 1})
+    print(len(df_SNPs))
     
-    assert sum(pd.isnull(df_SNPs['SNP'])) == 0
-    assert len(df_SNPs) == genome_length
-
     df_SNPs['SNPS_LEFT_ROLLING_AVG'] = df_SNPs['SNP'].rolling(window=SNP_window_size, min_periods=1, closed='right').mean()
     df_SNPs['SNPS_RIGHT_ROLLING_AVG'] = df_SNPs['SNP'][::-1].rolling(window=SNP_window_size, min_periods=1, closed='right').mean()[::-1]
 
@@ -446,6 +747,7 @@ def compute_sites_with_high_lowAF_SNP_density(SNPs_VCF_file, ref_genome_file, AF
     df_SNPs['SNPS_MAX_ROLLING_AVG'] = np.max([df_SNPs['SNPS_LEFT_ROLLING_AVG'], df_SNPs['SNPS_RIGHT_ROLLING_AVG']], axis=0)
 
     return df_SNPs
+
 
 
 
@@ -482,10 +784,12 @@ def split_MNPs_into_SNPs(df_variants):
                 k += 1
 
     df_variants_split_MNPs = pd.concat([df_SNPs, df_split_MNPs]).sort_values(['POS']).reset_index(drop=True)
-    assert len(df_variants_split_MNPs.iloc[df_variants_split_MNPs.index.values[df_variants_split_MNPs.duplicated(subset=['POS'], keep=False)]]) == 0
+    # assert len(df_variants_split_MNPs.iloc[df_variants_split_MNPs.index.values[df_variants_split_MNPs.duplicated(subset=['POS'], keep=False)]]) == 0
 
-    return df_variants_split_MNPs
-
+    if 'SampleID' in df_variants_split_MNPs.columns:
+        return df_variants_split_MNPs.drop_duplicates(subset=['SampleID', 'POS']).reset_index(drop=True)
+    else:
+        return df_variants_split_MNPs.drop_duplicates(subset=['POS']).reset_index(drop=True)
 
 
 
