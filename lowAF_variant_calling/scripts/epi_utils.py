@@ -673,6 +673,10 @@ def process_input_features_for_model(df, model_cols, stratify_variables=[], MIC_
     if 'high_lung_involvement' in model_cols:
         df_model = df_model.dropna(subset='predicted_PLI')
         df_model['high_lung_involvement'] = (df_model['predicted_PLI'] > PLI_thresh).astype(int)
+        
+    if 'human_high_lung_involvement' in model_cols:
+        df_model = df_model.dropna(subset='human_PLI')
+        df_model['human_high_lung_involvement'] = (df_model['human_PLI'] > PLI_thresh).astype(int)
 
     # this is the imputed smear grade sample 1. Mapping using smear_encoding_dict has already been done
     if 'smear_grade_1' in df_model.columns:
