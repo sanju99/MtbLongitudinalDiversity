@@ -12,6 +12,7 @@ def fasta_length(path):
     return length
 
 
+
 def apply_freebayes_lowAF_QCfilters(df_variants, AF_min=0.05, AF_max=0.95, MQ_thresh=40, num_support=5, forward_reverse_support=2):
     '''
     Use 0.98 when doing the validaiton using the personal ref genomes because if there's a variant present at 100% relative to H37Rv, there won't be a variant when called against the

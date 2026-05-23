@@ -88,7 +88,7 @@ for i, sample in enumerate(unmixed_lineage_samples):
     
     if len(df_indels) > 0:
     
-        df_indels = df_indels[['POS', 'REF', 'ALT', 'AF', 'AO', 'DP']].sort_values('POS')
+        df_indels = df_indels[['POS', 'REF', 'ALT', 'AF', 'AO', 'DP', 'ANN[0].GENE', 'ANN[0].HGVS_C', 'ANN[0].HGVS_P']].sort_values('POS').rename(columns={'ANN[0].GENE': 'GENE', 'ANN[0].HGVS_C': 'HGVS_C', 'ANN[0].HGVS_P': 'HGVS_P'})
             
         df_indels['SampleID'] = sample
             

@@ -131,11 +131,16 @@ def has_indel_at_pos(read, pos_1based, indel_type):
 
 
 
-def compute_adjusted_AF_indels(sample, df_indels, chrom, bam_file, n_prop=0.50, dist_from_indel=10):
+def compute_adjusted_AF_indels(sample, df_indels, chrom, aln_file, n_prop=0.50, dist_from_indel=10):
     
     df_indels = df_indels.reset_index(drop=True)
     
-    bam = pysam.AlignmentFile(bam_file, "rb")
+    if aln_file[-4:] == '.bam':
+        bam = pysam.AlignmentFile(aln_file, "rb")
+    elif aln_file[-5:] == '.cram':
+        bam = pysam.AlignmentFile(aln_file, "rc")
+    else:
+        raise ValueError(f"{aln_file} is not valid")
 
     for i, row in df_indels.iterrows():
 
@@ -292,7 +297,7 @@ for i, sample in enumerate(unmixed_lineage_samples):
     
     if len(df_indels) > 0:
     
-        df_indels = df_indels[['POS', 'REF', 'ALT', 'AF', 'AO', 'DP']].sort_values('POS')
+        df_indels = df_indels[['POS', 'REF', 'ALT', 'AF', 'AO', 'DP', 'ANN[0].GENE', 'ANN[0].HGVS_C', 'ANN[0].HGVS_P']].sort_values('POS').rename(columns={'ANN[0].GENE': 'GENE', 'ANN[0].HGVS_C': 'HGVS_C', 'ANN[0].HGVS_P': 'HGVS_P'})
         
         # require that the depth be at least the global median, so that we don't get low AF indels called in places with huge reference bias
         df_depth = pd.read_csv(f"{H37Rv_ref_dir}/{sample}/bam/{sample}.depth.tsv.gz", sep='\t', compression='gzip', names=['CHROM', 'POS', 'COV'])
@@ -311,7 +316,7 @@ for i, sample in enumerate(unmixed_lineage_samples):
             df_indels_adjusted_AF = compute_adjusted_AF_indels(sample,
                                                                df_indels, 
                                                                'Chromosome', 
-                                                               f"{H37Rv_ref_dir}/{sample}/bam/{sample}.dedup.bam", 
+                                                               f"{H37Rv_ref_dir}/{sample}/bam/{sample}.dedup.cram", 
                                                                dist_from_indel=dist_from_indel,
                                                               )
             
