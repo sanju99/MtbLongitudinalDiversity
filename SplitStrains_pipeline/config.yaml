@@ -1,4 +1,0 @@
-output_dir: "/n/data1/hms/dbmi/farhat/Sanjana/TRUST_directSputum"
-isolates_to_run: "isolates_to_run.tsv"
-scripts_dir: "./scripts"
-references_dir: "./references"

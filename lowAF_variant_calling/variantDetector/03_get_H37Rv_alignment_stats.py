@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-s", "--sample", dest='sample', type=str, required=True, help='Sample name used to prefix output files')
 parser.add_argument("-b", "--bam", dest='bam_fName', type=str, required=True, help='BAM file to get alignment statistics for.')
-parser.add_argument("-v", "--variants", dest='variants_file', type=str, required=True, help='TSV file of candidate low AF variants to get statistics for. This was generated from a VCF file')
+parser.add_argument("-v", "--variants", dest='variants_file', type=str, required=True, help='TSV file of candidate low AF variants to get statistics for. This should be generated from a VCF file')
 parser.add_argument("-g", "--genome", dest='genome_file', type=str, default="/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/references/ref_genome/H37Rv_NC_000962.3.fna", help='Reference genome FASTA file')
 
 cmd_line_args = parser.parse_args()
