@@ -1,10 +1,6 @@
 __pycache__/
 .snakemake/
 .ipynb_checkpoints/
-
-# some of these data files are too big
-supplement/ 
-
 core.*
 *.fasta*
 *.gz
