@@ -1,0 +1,89 @@
+
+```{r}
+library(ggtree)
+library(ggtreeExtra)
+library(ggplot2)
+library(tidyverse)
+library(ape)
+```
+
+```{r pressure, echo=FALSE}
+tree <- read.tree("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/SNP_concatenate_filtered.fasta.treefile")
+
+circ <- ggtree(tree, layout = "circular")
+
+df <- read.csv("/home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/14_enriched_genes_baseline_sample_presence.csv")
+
+rownames(df) <- df[, 1] # or df$Name
+
+# 2. Remove the first column from the data frame
+df <- df[, -1]
+
+df[, 2] <- as.character(df[, 2])
+
+# reroot on the L1 samples (MFS-520)
+tree_rooted <- root(tree, outgroup = "MFS-520", resolve.root = TRUE)
+
+# 2️⃣ Now pass the rerooted tree to ggtree
+p <- ggtree(tree_rooted, layout = "circular")#, branch.length = 'none')
+
+p
+```
+```{r}
+# create a new data frame with rownames = all nodes
+all_nodes <- 1:(Nnode(tree) + length(tree$tip.label))  # total nodes
+rownames(df) <- circ$tip.label  # ensure tips are labeled
+
+# initialize a full data frame with NAs for all nodes
+df_full <- data.frame(matrix(NA, nrow = length(all_nodes), ncol = ncol(df)))
+colnames(df_full) <- colnames(df)
+rownames(df_full) <- c(circ$tip.label, paste0("Node", 1:Nnode(circ$tree)))  
+
+# copy tip values into df_full
+df_full[circ$tip.label, ] <- df
+
+# optional: replace NAs (internal nodes) with 0 or any default value
+df_full[is.na(df_full)] <- 0
+```
+
+
+```{r pressure, echo=FALSE}
+df_ordered <- df[ tree$tip.label, ]
+
+p1 <- gheatmap(circ, df_ordered, offset=.8, width=.2,
+               colnames_angle=95, colnames_offset_y = .25) +
+    scale_fill_viridis_d(option="D", name="discrete\nvalue")
+
+p1
+```
+
+
+
+```{r}
+nwk <- system.file("extdata", "sample.nwk", package="treeio")
+
+tree <- read.tree(nwk)
+circ <- ggtree(tree, layout = "circular")
+
+df <- data.frame(first=c("a", "b", "a", "c", "d", "d", "a", 
+                        "b", "e", "e", "f", "c", "f"),
+                 second= c("z", "z", "z", "z", "y", "y", 
+                        "y", "y", "x", "x", "x", "a", "a"))
+rownames(df) <- tree$tip.label
+
+df2 <- as.data.frame(matrix(rnorm(39), ncol=3))
+rownames(df2) <- tree$tip.label
+colnames(df2) <- LETTERS[1:3]
+
+
+p1 <- gheatmap(circ, df, offset=.8, width=.2,
+               colnames_angle=95, colnames_offset_y = .25) +
+    scale_fill_viridis_d(option="D", name="discrete\nvalue")
+
+
+library(ggnewscale)
+p2 <- p1 + new_scale_fill()
+gheatmap(p2, df2, offset=15, width=.3,
+         colnames_angle=90, colnames_offset_y = .25) +
+    scale_fill_viridis_c(option="A", name="continuous\nvalue")
+```
