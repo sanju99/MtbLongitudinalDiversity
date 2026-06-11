@@ -4,3 +4,6 @@ __pycache__/
 core.*
 *.fasta*
 *.gz
+
+# explicitly include just this one because it's not that big
+!H37Rv/h37Rv_coords_to_gene.csv.gz
