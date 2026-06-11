@@ -49,7 +49,7 @@ F2_thresh = 0.03
 mixed_lineage_samples = df_trust_patients.query("F2 > @F2_thresh").SampleID.unique()
 unmixed_lineage_samples = df_trust_patients.query("F2 <= @F2_thresh").SampleID.unique()
 
-h37Rv_path = "/n/data1/hms/dbmi/farhat/Sanjana/H37Rv"
+h37Rv_path = "~/MtbLongitudinalDiversity/H37Rv"
 h37Rv_seq = SeqIO.read(os.path.join(h37Rv_path, "GCF_000195955.2_ASM19595v2_genomic.gbff"), "genbank")
 h37Rv_genes = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_genes_v4.csv"))
 h37Rv_regions = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_v4.csv"))

@@ -8,7 +8,7 @@ sys.path.append(
     str(Path(__file__).resolve().parent.parent / "variantDetector")
 )
 
-h37Rv_path = "/n/data1/hms/dbmi/farhat/Sanjana/H37Rv"
+h37Rv_path = "~/MtbLongitudinalDiversity/H37Rv"
 h37Rv_regions = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_v4.csv"))
 
 # remove rRNAs, which are highly conserved. rrs, rrl, and rrf

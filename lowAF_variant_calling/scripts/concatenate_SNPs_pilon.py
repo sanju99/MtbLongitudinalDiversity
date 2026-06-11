@@ -25,7 +25,7 @@ parser.add_argument('-sense', type=str, dest='SENSE', help='Sense, must be one o
 parser.add_argument('-o', type=str, dest='OUT_FILE', help='Name of the output FASTA file', required=True)
 
 # optional arguments
-parser.add_argument('--g', type=str, dest="GENOME_FILE", default="/n/data1/hms/dbmi/farhat/Sanjana/H37Rv/GCF_000195955.2_ASM19595v2_genomic.gbff", help="Full path to Genbank file for the reference genome")
+parser.add_argument('--g', type=str, dest="GENOME_FILE", default="~/MtbLongitudinalDiversity/H37Rv/GCF_000195955.2_ASM19595v2_genomic.gbff", help="Full path to Genbank file for the reference genome")
 parser.add_argument('--AF', type=float, dest='AF_THRESH', default=0.95, help='Alternative allele frequency threshold (exclusive) to consider variants present')
 parser.add_argument('--MQ', type=float, dest='MQ_THRESH', default=40, help='Mapping quality threshold (inclusive) to consider SNPs high quality')
 parser.add_argument('--BQ', type=float, dest='BQ_THRESH', default=30, help='Base quality threshold (inclusive) to consider SNPs high quality')

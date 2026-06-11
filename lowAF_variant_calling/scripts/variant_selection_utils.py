@@ -6,7 +6,7 @@ from Bio import Seq, SeqIO
 from Bio.Data import CodonTable
 from collections import Counter
 
-h37Rv_path = "/n/data1/hms/dbmi/farhat/Sanjana/H37Rv"
+h37Rv_path = "~/MtbLongitudinalDiversity/H37Rv"
 h37Rv_seq = SeqIO.read(os.path.join(h37Rv_path, "GCF_000195955.2_ASM19595v2_genomic.gbff"), "genbank")
 h37Rv_genes = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_genes_v4.csv"))
 h37Rv_coords = pd.read_csv(os.path.join(h37Rv_path, "h37Rv_coords_to_gene.csv"))

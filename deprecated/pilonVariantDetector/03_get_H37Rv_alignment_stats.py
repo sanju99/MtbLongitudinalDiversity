@@ -25,7 +25,7 @@ genome_file = cmd_line_args.genome_file
 out_dir = f"{os.path.dirname(os.path.dirname(bam_fName))}/pilon"
 os.makedirs(out_dir, exist_ok=True)
 
-h37Rv_path = "/n/data1/hms/dbmi/farhat/Sanjana/H37Rv"
+h37Rv_path = "~/MtbLongitudinalDiversity/H37Rv"
 h37Rv_regions = pd.read_csv(os.path.join(h37Rv_path, "mycobrowser_h37rv_v4.csv"))
 
 # remove rRNAs, which are highly conserved. rrs, rrl, and rrf
