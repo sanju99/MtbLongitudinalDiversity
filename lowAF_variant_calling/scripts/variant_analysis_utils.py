@@ -22,7 +22,7 @@ h37Rv_regions = h37Rv_regions.query("~Feature.str.contains('|'.join(['promoter',
 assert len(h37Rv_regions) == h37Rv_regions.Name.nunique()
 
 # h37Rv_regions = h37Rv_regions.query("Feature == 'CDS'").reset_index(drop=True)
-h37Rv_coords = pd.read_csv(os.path.join(h37Rv_path, "h37Rv_coords_to_gene.csv"))
+h37Rv_coords = pd.read_csv(os.path.join(h37Rv_path, "h37Rv_coords_to_gene.csv.gz"), compression='gzip')
 h37Rv_coords_dict = dict(zip(h37Rv_coords["pos"].values, h37Rv_coords["region"].values))
 
 silent_lst = ['synonymous_variant', 'initiator_codon_variant', 'stop_retained_variant']
