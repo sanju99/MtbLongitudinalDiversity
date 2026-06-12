@@ -1,0 +1,17 @@
+confidence,variant,Count
+1) Assoc w R,inhA_c.-154G>A,1.0
+1) Assoc w R,inhA_c.-777C>T,10.0
+1) Assoc w R,katG_p.Ser315Thr,3.0
+2) Assoc w R - Interim,inhA_p.Ser94Ala,1.0
+3) Uncertain significance,ahpC_p.Tyr34Cys,5.0
+3) Uncertain significance,katG_p.Ser315Gly,1.0
+4) Not assoc w R - Interim,ahpC_c.18T>C,7.0
+4) Not assoc w R - Interim,ahpC_c.276G>A,1.0
+4) Not assoc w R - Interim,katG_c.729C>T,1.0
+5) Not assoc w R,ahpC_c.-88G>A,29.0
+5) Not assoc w R,katG_p.Arg463Leu,243.0
+Not in Catalogue,fabG1_c.411C>T,2.0
+Not in Catalogue,inhA_c.133C>A,2.0
+Not in Catalogue,katG_p.Ala706Glu,1.0
+Not in Catalogue,katG_p.Trp438Arg,1.0
+Not in Catalogue,katG_p.Tyr98His,1.0

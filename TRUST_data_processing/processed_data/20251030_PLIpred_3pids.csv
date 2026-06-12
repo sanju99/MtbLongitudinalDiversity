@@ -1,0 +1,6 @@
+pid,Status,Filename,Name,patientID_view,predicted_PLI
+P0740,Outlier,/n/data1/hms/dbmi/farhat/rollingDB/TOTAL/CXR/dicom/P0740_1A.dcm,P0740_1A.dcm,P0740_1A,83.03901
+T0386,Normal,/n/data1/hms/dbmi/farhat/rollingDB/TRUST/CXR/dicom/T0386_1B.dcm,T0386_1B.dcm,T0386_1B,55.294632
+T0386,Normal,/n/data1/hms/dbmi/farhat/rollingDB/TRUST/CXR/dicom/T0386_3B.dcm,T0386_3B.dcm,T0386_3B,57.278805
+T0475,Normal,/n/data1/hms/dbmi/farhat/rollingDB/TRUST/CXR/dicom/T0475_1B.dcm,T0475_1B.dcm,T0475_1B,13.490097
+T0475,Normal,/n/data1/hms/dbmi/farhat/rollingDB/TRUST/CXR/dicom/T0475_2B_2.dcm,T0475_2B_2.dcm,T0475_2B_2,12.451314

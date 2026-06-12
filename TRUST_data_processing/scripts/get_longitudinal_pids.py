@@ -1,0 +1,228 @@
+import numpy as np
+import pandas as pd
+import glob, os, warnings, shutil, subprocess, re, sys, argparse
+from Bio import Seq, SeqIO
+warnings.filterwarnings('ignore')
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scipy.stats as st
+import scipy
+
+sys.path.append("/home/sak0914/TRUST_data_processing/scripts")
+from data_utils import *
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-i", dest='input_file', type=str, required=True, help='Combined patient and WGS data')
+parser.add_argument("-d", dest='WGS_data_dir', default="/n/data1/hms/dbmi/farhat/Sanjana/TRUST_lowAF", type=str, help='Directory where the processed sequencing is')
+parser.add_argument("-o", dest='output_dir', default="/home/sak0914/TRUST_data_processing", type=str, help='Output directory')
+parser.add_argument("--F2_max", type=float, default=0.03, help='F2 score above which we consider it a mixed infection')
+
+cmd_line_args = parser.parse_args()
+
+input_file = cmd_line_args.input_file
+WGS_data_dir = cmd_line_args.WGS_data_dir
+output_dir = cmd_line_args.output_dir
+F2_max = cmd_line_args.F2_max
+
+
+############################### THIS SCRIPT DETERMINES THE PIDS TO USE FOR LONGITUDINAL ANALYSIS ###############################
+
+
+df_patient_WGS = pd.read_csv(input_file)[['pid', 'Original_ID', 'SampleID', 'Sampling_Week', 'screen_prevpid', 'Kraken_Unclassified_Percent']]
+
+df_lineages = extract_lineages(df_patient_WGS, 'SampleID', WGS_data_dir)
+
+# combine with lineages
+df_patient_WGS = df_patient_WGS.merge(df_lineages, on='SampleID', how='inner')
+
+# keep only samples taken in the first 12 weeks (during treatment). We don't want to consider follow-up samples
+df_patient_WGS = df_patient_WGS.query("Sampling_Week <= 12")
+
+df_patient_WGS['Paired_Sample_Num'] = df_patient_WGS.groupby("pid").cumcount() + 1
+
+# Assign sample_num (total per patient)
+df_patient_WGS["total_samples"] = df_patient_WGS.groupby("pid")["Sampling_Week"].transform("size")
+
+# save this to use if you only want those with at least 1 sample
+################ REMOVE RE-ENROLLED PARTICIPANTS BECAUSE THEY'RE NOT INDEPENDENT OF EACH OTHER ################
+
+# # the outcomes dataframe has already handled this and only kept unique patients
+# df_tx_outcomes = pd.read_csv(f"{output_dir}/processed_data/tx_outcomes.csv")
+
+# df_patient_WGS.query("pid in @df_tx_outcomes.pid").to_csv("../data/pids_WGS_data.csv", index=False)
+
+# keep only those that have >1 timepoint
+pids_longitudinal = pd.DataFrame(df_patient_WGS.groupby('pid')['Sampling_Week'].nunique()).query("Sampling_Week > 1").index.values
+print(f"{len(pids_longitudinal)}/{df_patient_WGS.pid.nunique()} pids have multiple timepoints")
+
+df_longitudinal = df_patient_WGS.query("pid in @pids_longitudinal")
+
+# remove pids with only 1 sample now, after removing contaminated samples
+df_longitudinal = df_longitudinal.query("total_samples > 1")
+
+
+############################### HANDLE PIDS WITH SAMPLES WITH DIFFERENT LINEAGES USING TBTYPER OUTPUT ###############################
+
+
+df_culture_tbtyper = pd.read_csv("~/MtbLongitudinalDiversity/direct_sputum/culture_TBtypeR_results.csv")
+df_culture_tbtyper['SampleID'] = df_culture_tbtyper['sample_id'].str.split('.').str[0]
+
+df_culture_tbtyper['mix_phylotypes'] = df_culture_tbtyper.groupby('sample_id')['mix_phylotype'].transform(lambda x: ','.join(x))
+df_culture_tbtyper['mix_props'] = df_culture_tbtyper.groupby('sample_id')['mix_prop'].transform(lambda x: ','.join(np.array(x).astype(str)))
+
+df_longitudinal = df_longitudinal.merge(df_culture_tbtyper.drop_duplicates(subset=['SampleID', 'mix_phylotypes']), on='SampleID')
+
+# df_num_unique_lineages_by_pid = pd.DataFrame(df_longitudinal.groupby('pid')['Lineage'].nunique()).reset_index()
+
+# pids_with_multiple_lineages = df_num_unique_lineages_by_pid.query("Lineage > 1").pid.values
+# pids_with_one_lineage = df_num_unique_lineages_by_pid.query("Lineage == 1").pid.values
+
+pids_with_multiple_lineages = pd.DataFrame(df_longitudinal.groupby('pid')['mix_phylotypes'].nunique()).query("mix_phylotypes > 1").index.values
+pids_with_one_lineage = pd.DataFrame(df_longitudinal.groupby('pid')['mix_phylotypes'].nunique()).query("mix_phylotypes == 1").index.values
+
+print(f"    {len(pids_with_multiple_lineages)} pids have multiple lineages")
+
+# def select_samples_to_keep_single_pid(df, pid):
+    
+#     df_single_pid = df.query("pid==@pid")
+    
+#     num_samples = len(df_single_pid)
+#     expanded_sample_lineages = [lineage.split(',') for lineage in df_single_pid['Lineage'].values]
+    
+#     # simplest case
+#     if num_samples == 2:
+        
+#         # if there is overlap between the lineages, then there is evidence of mixing, and we keep both
+#         if len(set(expanded_sample_lineages[0]).intersection(expanded_sample_lineages[1])) > 0:
+#             return df_single_pid.SampleID.values
+#         else:
+#             # check if any have high F2. If so, keep
+#             if len(df_single_pid.query("F2 > @F2_max")) > 0:
+#                 return df_single_pid.SampleID.values
+#             else:
+#                 return []
+    
+#     else:
+#         # get the majority lineage
+#         flattened_sample_lineages = list(itertools.chain.from_iterable(expanded_sample_lineages))
+    
+#         vals, counts = np.unique(flattened_sample_lineages, return_counts=True)
+#         majority_lineage = vals[np.argmax(counts)]
+        
+#         return df_single_pid.query("Lineage.str.contains(@majority_lineage)").SampleID.values
+    
+    
+def select_samples_to_keep_single_pid_tbtyper(df, pid):
+    
+    df_single_pid = df.query("pid==@pid")
+    
+    num_samples = len(df_single_pid)
+    expanded_sample_lineages = [lineage.split(',') for lineage in df_single_pid['mix_phylotypes'].values]
+    
+    # simplest case: keep both. Will determine if they are discordant in a notebook
+    if num_samples == 2:
+        
+#         # if there is overlap between the lineages, then there is evidence of mixing, and we keep both
+#         if len(set(expanded_sample_lineages[0]).intersection(expanded_sample_lineages[1])) > 0:
+#             return df_single_pid.SampleID.values
+#         else:
+#             return []
+        return df_single_pid.SampleID.values
+    
+    else:
+        # get the majority lineage
+        flattened_sample_lineages = list(itertools.chain.from_iterable(expanded_sample_lineages))
+    
+        vals, counts = np.unique(flattened_sample_lineages, return_counts=True)
+        majority_lineage = vals[np.argmax(counts)]
+        
+        return df_single_pid.query("mix_phylotypes.str.contains(@majority_lineage)").SampleID.values
+    
+# pids_with_multiple_lineages_samples_to_keep = []
+
+# for pid in pids_with_multiple_lineages:
+    
+#     first_sample_lineage = df_longitudinal.query("pid==@pid & Paired_Sample_Num == 1")['Lineage'].values[0]
+    
+#     other_sample_lineages = df_longitudinal.query("pid==@pid & Paired_Sample_Num != 1")['Lineage'].values
+    
+#     # expand any mixed lineage cases
+#     expanded_sample_lineages = [lineage.split(',') for lineage in df_longitudinal.query("pid==@pid")['Lineage'].values]
+    
+#     samples_to_keep = list(select_samples_to_keep_single_pid(df_longitudinal, pid))
+#     pids_with_multiple_lineages_samples_to_keep += samples_to_keep
+
+
+# pids_with_multiple_lineages_samples_to_keep = []
+
+# for pid in pids_with_multiple_lineages:
+    
+#     lineages_1 = df_longitudinal.query("pid == @pid")['mix_phylotypes'].values[0].split(',')
+#     lineages_2 = df_longitudinal.query("pid == @pid")['mix_phylotypes'].values[1].split(',')
+    
+#     if len(set(lineages_1).intersection(lineages_2)) > 0:
+#         pids_with_multiple_lineages_samples_to_keep.append(pid)
+        
+pids_with_multiple_lineages_samples_to_keep = []
+
+for pid in pids_with_multiple_lineages:
+    
+    first_sample_lineage = df_longitudinal.query("pid==@pid & Paired_Sample_Num == 1")['mix_phylotypes'].values[0]
+    
+    other_sample_lineages = df_longitudinal.query("pid==@pid & Paired_Sample_Num != 1")['mix_phylotypes'].values
+    
+    # expand any mixed lineage cases
+    expanded_sample_lineages = [lineage.split(',') for lineage in df_longitudinal.query("pid==@pid")['mix_phylotypes'].values]
+    
+    samples_to_keep = list(select_samples_to_keep_single_pid_tbtyper(df_longitudinal, pid))
+    pids_with_multiple_lineages_samples_to_keep += samples_to_keep
+    
+    
+df_longitudinal_keep = pd.concat([df_longitudinal.query("pid in @pids_with_one_lineage"),
+                                  df_longitudinal.query("pid in @pids_with_multiple_lineages & SampleID in @pids_with_multiple_lineages_samples_to_keep")
+                                 ])
+
+# # remove pids with only 1 sample now, after removing samples with confidently called different lineages
+# df_longitudinal_keep = df_longitudinal_keep.query("total_samples > 1")
+
+# # save a table of the removed pids to another file to inspect manually later
+# df_discordant_pids = df_longitudinal.query("pid not in @df_longitudinal_keep.pid")[['pid', 'Original_ID', 'SampleID', 'Sampling_Week', 'screen_prevpid', 'F2', 'Coll2014', 'Freschi2020']]
+
+# print(f"    {df_discordant_pids.pid.nunique()} pids have multiple unmixed lineages")
+# df_discordant_pids.sort_values(['pid', 'Sampling_Week']).to_csv(f"{output_dir}/processed_data/pids_discordant_unmixed_lineages.csv", index=False)
+
+# print(f"{df_longitudinal_keep.pid.nunique()} pids have at least 2 WGS samples without confidently called discordant lineages")
+
+print(df_longitudinal_keep.query("SampleID=='MFS-605'").Kraken_Unclassified_Percent.values)
+pids_more_than_2_samples = pd.DataFrame(df_longitudinal_keep.groupby('pid').SampleID.nunique()).query("SampleID > 2").index.values
+
+most_kraken_contam_samples = []
+
+for pid in pids_more_than_2_samples:
+    
+    # only drop the samples if they have high kraken unclassified. Otherwise, prioritize maximing the sampling interval between paired samples
+    df_single_pid = df_longitudinal_keep.query("pid == @pid")
+    
+    # we set a threshold of 20% kraken contamination to keep samples
+    most_kraken_contam_samples += list(df_single_pid.query("Kraken_Unclassified_Percent > 10").SampleID.values)
+    
+    
+print(f"Dropping {len(most_kraken_contam_samples)} samples with kraken contamination >10% among pids with >2 WGS samples: {','.join(most_kraken_contam_samples)}")
+df_longitudinal_keep = df_longitudinal_keep.query("SampleID not in @most_kraken_contam_samples")
+
+df_longitudinal_keep['Paired_Sample_Num'] = df_longitudinal_keep.sort_values(['pid', 'Sampling_Week', 'Original_ID', 'SampleID', 'screen_prevpid']).groupby("pid").cumcount() + 1
+
+# Assign sample_num (total per patient)
+df_longitudinal_keep["total_samples"] = df_longitudinal_keep.groupby("pid")["Sampling_Week"].transform("size")
+
+# keep the 2 least kraken-contaminated samples if there are more than 2 WGS samples per pid
+# Keep only first and last samples per patient.
+df_longitudinal_keep = df_longitudinal_keep.query("Paired_Sample_Num == 1 | Paired_Sample_Num == total_samples").sort_values(['pid', 'Paired_Sample_Num']).reset_index(drop=True)
+
+# replace the Paired_Sample_Num second sample with the number 2
+df_longitudinal_keep.loc[df_longitudinal_keep['Paired_Sample_Num'] != 1, 'Paired_Sample_Num'] = 2
+
+assert len(df_longitudinal_keep) == 2 * df_longitudinal_keep.pid.nunique()
+
+df_longitudinal_keep.to_csv(f"{output_dir}/processed_data/longitudinal_pids_WGS_data.csv", index=False)
