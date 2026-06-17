@@ -4,6 +4,8 @@ __pycache__/
 core.*
 *.fasta*
 *.gz
+TRUST_data_processing/processed_data/
+TRUST_data_processing/raw_data/
 
 # explicitly include just this one because it's not that big
 !H37Rv/h37Rv_coords_to_gene.csv.gz
