@@ -3,6 +3,10 @@ __pycache__/
 .ipynb_checkpoints/
 core.*
 *.fasta*
+# explicitly include these because they're not that big
+!lowAF_variant_calling/data/trees/SNP_concatenate_filtered.fasta*
+!lowAF_variant_calling/data/trees/*/SNP_concatenate_filtered.fasta*
+
 *.gz
 TRUST_data_processing/processed_data/
 TRUST_data_processing/raw_data/
