@@ -8,6 +8,6 @@ Both sets of rules call `variantDetector/01_write_lowAF_BED.py` and `variantDete
 
 Once you have the resulting low frequency variant calls, substitution variants should be processed by `variantDetector/04_prep_variant_tables_for_model.py` before running the error model. 
 
-Example data and the individual variable means and standard deviations are in `variantDetector/unmixed_only`. The logistic regression model with which to get predictions on new data is `variantDetector/unmixed_only/penalty_none/logistic_model.pkl`, which was fit on the data using the script `variantDetector/05_logistic_model.py`.
+The data used in the manuscript and the individual variable means and standard deviations are in `variantDetector/unmixed_only`. The logistic regression model with which to get predictions on new data is `variantDetector/unmixed_only/penalty_none/logistic_model.pkl`, which was fit on the data using the script `variantDetector/05_logistic_model.py`.
 
 Indel variants should be processed and identified using `variantDetector/06_get_unfixed_indels.py` and `variantDetector/07_get_fixed_indels.py`.
