@@ -1,0 +1,368 @@
+IQ-TREE 2.4.0 built Feb 12 2025
+
+Input file name: /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta
+Type of analysis: ModelFinder + tree reconstruction
+Random seed number: 823596
+
+REFERENCES
+----------
+
+To cite IQ-TREE please use:
+
+Bui Quang Minh, Heiko A. Schmidt, Olga Chernomor, Dominik Schrempf,
+Michael D. Woodhams, Arndt von Haeseler, and Robert Lanfear (2020)
+IQ-TREE 2: New models and efficient methods for phylogenetic inference
+in the genomic era. Mol. Biol. Evol., in press.
+https://doi.org/10.1093/molbev/msaa015
+
+To cite ModelFinder please use: 
+
+Subha Kalyaanamoorthy, Bui Quang Minh, Thomas KF Wong, Arndt von Haeseler,
+and Lars S Jermiin (2017) ModelFinder: Fast model selection for
+accurate phylogenetic estimates. Nature Methods, 14:587–589.
+https://doi.org/10.1038/nmeth.4285
+
+SEQUENCE ALIGNMENT
+------------------
+
+Input data: 110 sequences with 8456 nucleotide sites
+Number of constant sites: 0 (= 0% of all sites)
+Number of invariant (constant or ambiguous constant) sites: 0 (= 0% of all sites)
+Number of parsimony informative sites: 4498
+Number of distinct site patterns: 1208
+
+ModelFinder
+-----------
+
+Best-fit model according to BIC: TVM+F+ASC+R2
+
+List of models sorted by BIC scores: 
+
+Model                  LogL         AIC      w-AIC        AICc     w-AICc         BIC      w-BIC
+TVM+F+ASC+R2     -53897.382  108234.764 +    0.207  108246.572 +    0.219  109784.143 +    0.895
+GTR+F+ASC+R2     -53895.191  108232.381 +    0.681  108244.298 +    0.681  109788.803 +   0.0871
+K3Pu+F+ASC+R2    -53910.367  108256.734 - 3.51e-06  108268.326 - 4.13e-06  109792.028 -   0.0174
+TIM+F+ASC+R2     -53910.663  108259.325 - 9.61e-07  108271.025 - 1.07e-06  109801.661 - 0.000141
+TVMe+ASC+R2      -53919.899  108273.798 - 6.92e-10  108285.283 - 8.59e-10  109802.049 - 0.000116
+GTR+F+ASC+R3     -53895.000  108236.000 +    0.112  108248.136 +      0.1  109806.507 - 1.25e-05
+SYM+ASC+R2       -53918.910  108273.820 - 6.84e-10  108285.412 - 8.05e-10  109809.114 - 3.39e-06
+GTR+F+ASC        -53944.596  108327.193 - 1.76e-21  108338.892 - 1.96e-21  109869.529 - 2.57e-19
+GTR+F+ASC+G4     -53941.200  108322.399 - 1.93e-20  108334.208 - 2.04e-20  109871.778 - 8.36e-20
+TPM2u+F+ASC+R2   -54030.079  108496.159 - 3.59e-58  108507.751 - 4.22e-58  110031.453 - 1.78e-54
+HKY+F+ASC+R2     -54037.749  108509.499 - 4.55e-61  108520.983 - 5.65e-61  110037.750 - 7.62e-56
+TIM2+F+ASC+R2    -54030.465  108498.930 - 8.98e-59  108510.629 -    1e-58  110041.266 - 1.31e-56
+TPM3u+F+ASC+R2   -54035.647  108507.293 - 1.37e-60  108518.885 - 1.61e-60  110042.587 - 6.79e-57
+TN+F+ASC+R2      -54038.021  108512.043 - 1.28e-61  108523.635 -  1.5e-61  110047.337 - 6.31e-58
+TIM3+F+ASC+R2    -54036.128  108510.255 - 3.12e-61  108521.955 - 3.48e-61  110052.592 - 4.56e-59
+TPM3+ASC+R2      -54204.765  108839.530 - 9.83e-133  108850.802 - 1.36e-132  110353.696 - 1.88e-124
+TIM3e+ASC+R2     -54204.317  108840.634 - 5.66e-133  108852.012 - 7.41e-133  110361.843 - 3.21e-126
+TPM2+ASC+R2      -54230.242  108890.484 - 8.48e-144  108901.755 - 1.17e-143  110404.649 - 1.62e-135
+TIM2e+ASC+R2     -54229.656  108891.312 - 5.6e-144  108902.691 - 7.33e-144  110412.521 - 3.17e-137
+K3P+ASC+R2       -54354.724  109139.447 - 7.36e-198  109150.719 - 1.02e-197  110653.613 - 1.41e-189
+TIMe+ASC+R2      -54354.022  109140.044 - 5.46e-198  109151.422 - 7.14e-198  110661.253 - 3.09e-191
+K2P+ASC+R2       -54384.191  109196.381 - 3.19e-210  109207.547 - 4.64e-210  110703.504 - 2.07e-200
+TNe+ASC+R2       -54383.452  109196.905 - 2.45e-210  109208.177 - 3.39e-210  110711.071 - 4.7e-202
+JC+ASC+R2        -56076.465  112578.929 -        0  112589.990 -        0  114079.010 -        0
+F81+F+ASC+R2     -56170.337  112772.673 -        0  112784.051 -        0  114293.882 -        0
+
+AIC, w-AIC   : Akaike information criterion scores and weights.
+AICc, w-AICc : Corrected AIC scores and weights.
+BIC, w-BIC   : Bayesian information criterion scores and weights.
+
+Plus signs denote the 95% confidence sets.
+Minus signs denote significant exclusion.
+
+SUBSTITUTION PROCESS
+--------------------
+
+Model of substitution: TVM+F+ASC+R2
+
+Rate parameter R:
+
+  A-C: 1.0557
+  A-G: 3.2144
+  A-T: 0.4038
+  C-G: 0.6102
+  C-T: 3.2144
+  G-T: 1.0000
+
+State frequencies: (empirical counts from alignment)
+
+  pi(A) = 0.1565
+  pi(C) = 0.3398
+  pi(G) = 0.3497
+  pi(T) = 0.154
+
+Rate matrix Q:
+
+  A     -1.44    0.3344     1.048   0.05795
+  C    0.1541   -0.8143    0.1989    0.4614
+  G    0.4691    0.1933   -0.8059    0.1435
+  T   0.05892     1.018     0.326    -1.403
+
+Model of rate heterogeneity: FreeRate with 2 categories
+Site proportion and rates:  (0.9909,0.7598) (0.009112,27.12)
+
+ Category  Relative_rate  Proportion
+  1         0.7598         0.9909
+  2         27.12          0.009112
+
+MAXIMUM LIKELIHOOD TREE
+-----------------------
+
+Log-likelihood of the tree: -53896.2379 (s.e. 195.6505)
+Unconstrained log-likelihood (without tree): -51477.7393
+Number of free parameters (#branches + #model parameters): 220
+Akaike information criterion (AIC) score: 108232.4758
+Corrected Akaike information criterion (AICc) score: 108244.2839
+Bayesian information criterion (BIC) score: 109781.8547
+
+Total tree length (sum of branch lengths): 0.0052
+Sum of internal branch lengths: 0.0017 (32.5055% of tree length)
+
+WARNING: 49 near-zero internal branches (<0.0001) should be treated with caution
+         Such branches are denoted by '**' in the figure below
+
+NOTE: Tree is UNROOTED although outgroup taxon 'MFS-331' is drawn at root
+
++**MFS-331
+|
+|                                        +**MFS-1
+|                                     +**| (/1)
+|                                     |  +**MFS-51
+|                                  +**| (/1)
+|                                  |  |  +**MFS-7
+|                                  |  +**| (/1)
+|                                  |  |  +**MFS-22
+|                                  |  |  |
+|                                  |  |  +**MFS-71
+|                                  |  |  |
+|                                  |  |  |  +**MFS-80
+|                                  |  |  +**| (/1)
+|                                  |  |  |  +**MFS-291
+|                                  |  |  |
+|                                  |  |  +**MFS-277
+|                                  |  |  |
+|                                  |  |  +**MFS-132
+|                                  |  |  |
+|                                  |  |  +**MFS-172
+|                                  |  |  |
+|                                  |  |  +**MFS-325
+|                                  |  |  |
+|                                  |  |  +**MFS-320
+|                                  |  |  |
+|                                  |  |  +**MFS-768
+|                                  |  |  |
+|                                  |  |  +**MFS-443
+|                                  |  |
+|                                  |  |  +**MFS-32
+|                                  |  +**| (/1)
+|                                  |  |  +**MFS-33
+|                                  |  |  |
+|                                  |  |  +**MFS-54
+|                                  |  |  |
+|                                  |  |  +**MFS-359
+|                                  |  |  |
+|                                  |  |  +**MFS-62
+|                                  |  |  |
+|                                  |  |  +**MFS-64
+|                                  |  |  |
+|                                  |  |  +**MFS-636
+|                                  |  |  |
+|                                  |  |  +**MFS-122
+|                                  |  |  |
+|                                  |  |  +**MFS-323
+|                                  |  |  |
+|                                  |  |  +**MFS-315
+|                                  |  |  |
+|                                  |  |  +**MFS-319
+|                                  |  |  |
+|                                  |  |  +**MFS-414
+|                                  |  |
+|                                  |  |     +**MFS-355
+|                                  |  |  +**| (/1)
+|                                  |  |  |  +**MFS-129
+|                                  |  +**| (/1)
+|                                  |  |  +**MFS-58
+|                                  |  |  |
+|                                  |  |  |  +**MFS-115
+|                                  |  |  +**| (/1)
+|                                  |  |     +**MFS-156
+|                                  |  |     |
+|                                  |  |     +**MFS-324
+|                                  |  |     |
+|                                  |  |     +**MFS-264
+|                                  |  |     |
+|                                  |  |     +**MFS-292
+|                                  |  |
+|                                  |  |  +**MFS-753
+|                                  |  +**| (/1)
+|                                  |  |  +**MFS-97
+|                                  |  |  |
+|                                  |  |  +**MFS-158
+|                                  |  |  |
+|                                  |  |  |  +**MFS-161
+|                                  |  |  +**| (/1)
+|                                  |  |     +**MFS-673
+|                                  |  |
+|                                  |  |  +**MFS-119
+|                                  |  +**| (/1)
+|                                  |     |  +**MFS-640
+|                                  |     +**| (/1)
+|                                  |        +**MFS-399
+|                     +------------| (/1)
+|                     |            |        +**MFS-3
+|                     |            |     +**| (/1)
+|                     |            |     |  |  +**MFS-16
+|                     |            |     |  +**| (/1)
+|                     |            |     |  |  +**MFS-37
+|                     |            |     |  |  |
+|                     |            |     |  |  +**MFS-41
+|                     |            |     |  |  |
+|                     |            |     |  |  +**MFS-55
+|                     |            |     |  |  |
+|                     |            |     |  |  +**MFS-583
+|                     |            |     |  |
+|                     |            |     |  +**MFS-658
+|                     |            |  +**| (/1)
+|                     |            |  |  +**MFS-162
+|                     |            +**| (/1)
+|                     |            |  +**MFS-611
+|                     |            |
+|                     |            |  +**MFS-368
+|                     |            +**| (/1)
+|                     |            |  |     +**MFS-70
+|                     |            |  |  +**| (/1)
+|                     |            |  |  |  +**MFS-184
+|                     |            |  |  |  |
+|                     |            |  |  |  +**MFS-812
+|                     |            |  +**| (/1)
+|                     |            |  |  +**MFS-616
+|                     |            |  |  |
+|                     |            |  |  |  +**MFS-397
+|                     |            |  |  +**| (/1)
+|                     |            |  |     +**MFS-454
+|                     |            |  |
+|                     |            |  +**MFS-259
+|                     |            |
+|                     |            +**MFS-706
+|                  +**| (/1)
+|                  |  |                 +**MFS-5
+|                  |  |            +****| (/1)
+|                  |  |            |    +**MFS-557
+|                  |  |            |    |
+|                  |  |            |    +**MFS-737
+|                  |  +------------| (/1)
+|                  |               |    +**MFS-15
+|                  |               +****| (/1)
+|                  |                    +**MFS-566
+|                  |                    |
+|                  |                    +**MFS-135
+|             +****| (/1)
+|             |    +-----------------------------------------MFS-520
+|          +**| (/1)
+|          |  |               +**MFS-4
+|          |  |            +**| (/1)
+|          |  |            |  +**MFS-754
+|          |  |            |  |
+|          |  |            |  +**MFS-194
+|          |  |            |  |
+|          |  |            |  +**MFS-329
+|          |  |            |  |
+|          |  |            |  +**MFS-470
+|          |  |        +***| (/1)
+|          |  |        |   |  +**MFS-83
+|          |  |        |   +**| (/1)
+|          |  |        |      +**MFS-381
+|          |  |        |      |
+|          |  |        |      +**MFS-137
+|          |  |     +**| (/1)
+|          |  |     |  |  +**MFS-28
+|          |  |     |  +**| (/1)
+|          |  |     |     +**MFS-395
+|          |  |  +**| (/1)
+|          |  |  |  |  +**MFS-56
+|          |  |  |  +**| (/1)
+|          |  |  |     |  +**MFS-878
+|          |  |  |     +**| (/1)
+|          |  |  |        +**MFS-637
+|          |  +**| (/1)
+|          |     |        +**MFS-43
+|          |     |     +**| (/1)
+|          |     |     |  +**MFS-741
+|          |     |     |  |
+|          |     |     |  +**MFS-602
+|          |     |  +**| (/1)
+|          |     |  |  +**MFS-429
+|          |     +**| (/1)
+|          |        +-----MFS-308
+|       +**| (/1)
+|       |  |       +**MFS-27
+|       |  |    +**| (/1)
+|       |  |    |  +**MFS-117
+|       |  +****| (/1)
+|       |  |    +-----MFS-104
+|       |  |    |
+|       |  |    +****MFS-310
+|       |  |
+|       |  |         +**MFS-60
+|       |  |     +***| (/1)
+|       |  |     |   +**MFS-181
+|       |  +-----| (/1)
+|       |        |     +**MFS-150
+|       |        |  +**| (/1)
+|       |        |  |  +**MFS-258
+|       |        +**| (/1)
+|       |           +**MFS-677
+|  +----| (/1)
+|  |    |          +**MFS-106
+|  |    |       +**| (/1)
+|  |    |       |  |  +**MFS-656
+|  |    |       |  +**| (/1)
+|  |    |       |     +**MFS-675
+|  |    |  +****| (/1)
+|  |    |  |    |  +**MFS-430
+|  |    |  |    +**| (/1)
+|  |    |  |       +**MFS-482
+|  |    +**| (/1)
+|  |       +-----MFS-690
++**| (/1)
+|  +**MFS-25
+|  |
+|  +**MFS-160
+|  |
+|  +**MFS-659
+|  |
+|  +**MFS-401
+|  |
+|  +**MFS-410
+|
++**MFS-327
+
+Tree in newick format:
+
+(MFS-331:0.0000184283,(((((((((MFS-1:0.0000042825,MFS-51:0.0000116260)/1:0.0000042823,(MFS-7:0.0000042828,MFS-22:0.0000073077,MFS-71:0.0000018077,(MFS-80:0.0000024108,MFS-291:0.0000018077)/1:0.0000055072,MFS-277:0.0000036354,MFS-132:0.0000000442,MFS-172:0.0000030445,MFS-325:0.0000000442,MFS-320:0.0000097909,MFS-768:0.0000061191,MFS-443:0.0000073078)/1:0.0000097914,(MFS-32:0.0000005990,MFS-33:0.0000048710,MFS-54:0.0000012215,MFS-359:0.0000000442,MFS-62:0.0000000442,MFS-64:0.0000048710,MFS-636:0.0000000442,MFS-122:0.0000012215,MFS-323:0.0000061180,MFS-315:0.0000012215,MFS-319:0.0000000442,MFS-414:0.0000000442)/1:0.0000073067,((MFS-355:0.0000000442,MFS-129:0.0000000442)/1:0.0000073075,MFS-58:0.0000048713,(MFS-115:0.0000024104,MFS-156:0.0000000442,MFS-324:0.0000005993,MFS-264:0.0000012216,MFS-292:0.0000000442)/1:0.0000048717)/1:0.0000067304,(MFS-753:0.0000079156,MFS-97:0.0000079157,MFS-158:0.0000048711,(MFS-161:0.0000000442,MFS-673:0.0000018164)/1:0.0000048713)/1:0.0000061186,(MFS-119:0.0000061184,(MFS-640:0.0000005991,MFS-399:0.0000030444)/1:0.0000085665)/1:0.0000048717)/1:0.0000440818,(((MFS-3:0.0000165379,(MFS-16:0.0000042852,MFS-37:0.0000018086,MFS-41:0.0000000442,MFS-55:0.0000061225,MFS-583:0.0000000442)/1:0.0000110221,MFS-658:0.0000177581)/1:0.0000459470,MFS-162:0.0000655439)/1:0.0000055009,MFS-611:0.0000557335)/1:0.0000098056,(MFS-368:0.0000685950,((MFS-70:0.0000005997,MFS-184:0.0000012223,MFS-812:0.0000024477)/1:0.0000183670,MFS-616:0.0000202110,(MFS-397:0.0000036366,MFS-454:0.0000012223)/1:0.0000073108)/1:0.0000526763,MFS-259:0.0000544906)/1:0.0000079570,MFS-706:0.0000667480)/1:0.0002827674,((MFS-5:0.0000030620,MFS-557:0.0000067420,MFS-737:0.0000030620)/1:0.0001048449,(MFS-15:0.0000018276,MFS-566:0.0000012232,MFS-135:0.0000055144)/1:0.0001128646)/1:0.0002850836)/1:0.0000377059,MFS-520:0.0008800107)/1:0.0001109857,(((((MFS-4:0.0000024345,MFS-754:0.0000000442,MFS-194:0.0000000442,MFS-329:0.0000018160,MFS-470:0.0000012156)/1:0.0000061479,(MFS-83:0.0000024343,MFS-381:0.0000042814,MFS-137:0.0000042814)/1:0.0000042812)/1:0.0000929228,(MFS-28:0.0000048915,MFS-395:0.0000073779)/1:0.0000793637)/1:0.0000418279,(MFS-56:0.0000688820,(MFS-878:0.0000196697,MFS-637:0.0000332009)/1:0.0000461227)/1:0.0000775367)/1:0.0000405926,(((MFS-43:0.0000239711,MFS-741:0.0000208971,MFS-602:0.0000159806)/1:0.0000517915,MFS-429:0.0000644103)/1:0.0000713563,MFS-308:0.0001275584)/1:0.0000520332)/1:0.0000547367)/1:0.0000356382,((MFS-27:0.0000496802,MFS-117:0.0000472941)/1:0.0000804719,MFS-104:0.0001259447,MFS-310:0.0001142677)/1:0.0001037335,((MFS-60:0.0000000442,MFS-181:0.0000005975)/1:0.0000823065,((MFS-150:0.0000018398,MFS-258:0.0000011837)/1:0.0000221005,MFS-677:0.0000135029)/1:0.0000558879)/1:0.0001242174)/1:0.0000760818,(((MFS-106:0.0000147402,(MFS-656:0.0000018412,MFS-675:0.0000005946)/1:0.0000116673)/1:0.0000264128,(MFS-430:0.0000061096,MFS-482:0.0000116675)/1:0.0000546837)/1:0.0001102200,MFS-690:0.0001425269)/1:0.0000078962)/1:0.0001212376,MFS-25:0.0000202739,MFS-160:0.0000282553,MFS-659:0.0000184304,MFS-401:0.0000239582,MFS-410:0.0000264234)/1:0.0000042561,MFS-327:0.0000184285);
+
+ALISIM COMMAND
+--------------
+To simulate an alignment of the same length as the original alignment, using the tree and model parameters estimated from this analysis, you can use the following command:
+
+--alisim simulated_MSA -t /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.treefile -m "TVM{1.05565,3.21444,0.403754,0.61017}+F{0.156544,0.33977,0.349715,0.153971}+ASC+R2{0.990888,0.759814,0.00911161,27.1203}" --length 8456
+
+To mimic the alignment used to produce this analysis, i.e. simulate an alignment of the same length as the original alignment, using the tree and model parameters estimated from this analysis *and* copying the same gap positions as the original alignment, you can use the following command:
+
+iqtree -s /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta --alisim mimicked_MSA
+
+To simulate any number of alignments in either of the two commandlines above, use the --num-alignments options, for example mimic 100 alignments you would use the command line:
+
+iqtree -s /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta --alisim mimicked_MSA --num-alignments 100
+
+For more information on using AliSim, please visit: www.iqtree.org/doc/AliSim
+
+TIME STAMP
+----------
+
+Date and time: Thu Dec 11 08:20:40 2025
+Total CPU time used: 83.6608 seconds (0h:1m:23s)
+Total wall-clock time used: 143.868 seconds (0h:2m:23s)
+

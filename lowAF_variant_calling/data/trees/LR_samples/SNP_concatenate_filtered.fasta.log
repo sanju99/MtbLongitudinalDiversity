@@ -1,0 +1,267 @@
+IQ-TREE multicore version 2.4.0 for Linux x86 64-bit built Feb 12 2025
+Developed by Bui Quang Minh, Nguyen Lam Tung, Olga Chernomor, Heiko Schmidt,
+Dominik Schrempf, Michael Woodhams, Ly Trong Nhan, Thomas Wong
+
+Host:    compute-b-16-175.o2.rc.hms.harvard.edu (AVX512, FMA3, 1006 GB RAM)
+Command: iqtree -s /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta -czb --abayes -m MFP+ASC
+Seed:    823596 (Using SPRNG - Scalable Parallel Random Number Generator)
+Time:    Thu Dec 11 08:18:16 2025
+Kernel:  AVX+FMA - 1 threads (1 CPU cores detected)
+
+Reading alignment file /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta ... Fasta format detected
+Reading fasta file: done in 0.0331461 secs using 83.18% CPU
+Alignment most likely contains DNA/RNA sequences
+Alignment has 110 sequences with 8456 columns, 1208 distinct patterns
+4498 parsimony-informative, 3958 singleton sites, 0 constant sites
+         Gap/Ambiguity  Composition  p-value
+Analyzing sequences: done in 0.000398528 secs using 82.05% CPU
+   1  MFS-331    0.00%    passed     98.47%
+   2  MFS-1      0.00%    passed     90.83%
+   3  MFS-3      0.00%    passed     90.36%
+   4  MFS-4      0.00%    passed     93.78%
+   5  MFS-5      0.00%    passed     31.03%
+   6  MFS-520    0.00%    failed      0.01%
+   7  MFS-7      0.00%    passed     91.96%
+   8  MFS-15     0.00%    passed     17.44%
+   9  MFS-16     0.00%    passed     98.50%
+  10  MFS-22     0.00%    passed     93.19%
+  11  MFS-25     0.00%    passed     99.42%
+  12  MFS-27     0.00%    passed     83.39%
+  13  MFS-28     0.00%    passed     93.68%
+  14  MFS-32     0.00%    passed     90.08%
+  15  MFS-33     0.00%    passed     87.44%
+  16  MFS-37     0.00%    passed     99.09%
+  17  MFS-41     0.00%    passed     96.64%
+  18  MFS-557    0.00%    passed     34.30%
+  19  MFS-43     0.00%    passed     98.09%
+  20  MFS-51     0.00%    passed     94.59%
+  21  MFS-54     0.00%    passed     92.74%
+  22  MFS-355    0.00%    passed     90.99%
+  23  MFS-737    0.00%    passed     32.92%
+  24  MFS-566    0.00%    passed     15.34%
+  25  MFS-55     0.00%    passed     98.48%
+  26  MFS-359    0.00%    passed     90.74%
+  27  MFS-56     0.00%    passed     73.79%
+  28  MFS-58     0.00%    passed     89.46%
+  29  MFS-741    0.00%    passed     98.91%
+  30  MFS-583    0.00%    passed     96.64%
+  31  MFS-60     0.00%    passed     70.94%
+  32  MFS-368    0.00%    passed     95.60%
+  33  MFS-62     0.00%    passed     90.48%
+  34  MFS-64     0.00%    passed     90.08%
+  35  MFS-70     0.00%    passed     84.36%
+  36  MFS-71     0.00%    passed     92.80%
+  37  MFS-602    0.00%    passed     96.24%
+  38  MFS-611    0.00%    passed     93.82%
+  39  MFS-80     0.00%    passed     93.08%
+  40  MFS-83     0.00%    passed     95.81%
+  41  MFS-616    0.00%    passed     87.25%
+  42  MFS-753    0.00%    passed     88.05%
+  43  MFS-97     0.00%    passed     83.41%
+  44  MFS-104    0.00%    passed     84.19%
+  45  MFS-106    0.00%    passed     98.59%
+  46  MFS-754    0.00%    passed     93.19%
+  47  MFS-194    0.00%    passed     93.19%
+  48  MFS-277    0.00%    passed     93.54%
+  49  MFS-115    0.00%    passed     93.53%
+  50  MFS-117    0.00%    passed     95.37%
+  51  MFS-878    0.00%    passed     74.74%
+  52  MFS-636    0.00%    passed     90.74%
+  53  MFS-637    0.00%    passed     81.82%
+  54  MFS-119    0.00%    passed     90.46%
+  55  MFS-640    0.00%    passed     91.31%
+  56  MFS-122    0.00%    passed     92.44%
+  57  MFS-129    0.00%    passed     90.99%
+  58  MFS-132    0.00%    passed     92.80%
+  59  MFS-135    0.00%    passed     11.08%
+  60  MFS-381    0.00%    passed     94.13%
+  61  MFS-137    0.00%    passed     94.95%
+  62  MFS-150    0.00%    passed     67.81%
+  63  MFS-156    0.00%    passed     92.63%
+  64  MFS-158    0.00%    passed     82.67%
+  65  MFS-160    0.00%    passed     95.83%
+  66  MFS-161    0.00%    passed     88.91%
+  67  MFS-162    0.00%    passed     92.92%
+  68  MFS-171    0.00%    passed     93.19%
+  69  MFS-172    0.00%    passed     92.53%
+  70  MFS-181    0.00%    passed     71.65%
+  71  MFS-184    0.00%    passed     86.33%
+  72  MFS-321    0.00%    passed     96.64%
+  73  MFS-323    0.00%    passed     93.52%
+  74  MFS-324    0.00%    passed     91.67%
+  75  MFS-325    0.00%    passed     93.52%
+  76  MFS-327    0.00%    passed     99.14%
+  77  MFS-329    0.00%    passed     92.53%
+  78  MFS-264    0.00%    passed     93.19%
+  79  MFS-308    0.00%    passed     77.22%
+  80  MFS-310    0.00%    passed     90.33%
+  81  MFS-259    0.00%    passed     98.82%
+  82  MFS-656    0.00%    passed     93.61%
+  83  MFS-258    0.00%    passed     69.21%
+  84  MFS-315    0.00%    passed     90.96%
+  85  MFS-291    0.00%    passed     94.90%
+  86  MFS-292    0.00%    passed     92.63%
+  87  MFS-319    0.00%    passed     90.48%
+  88  MFS-320    0.00%    passed     96.51%
+  89  MFS-658    0.00%    passed     94.55%
+  90  MFS-659    0.00%    passed     95.75%
+  91  MFS-395    0.00%    passed     92.14%
+  92  MFS-397    0.00%    passed     88.29%
+  93  MFS-399    0.00%    passed     89.42%
+  94  MFS-401    0.00%    passed     97.14%
+  95  MFS-410    0.00%    passed     96.04%
+  96  MFS-414    0.00%    passed     90.74%
+  97  MFS-767    0.00%    passed     93.19%
+  98  MFS-768    0.00%    passed     93.80%
+  99  MFS-429    0.00%    passed     92.32%
+ 100  MFS-430    0.00%    passed     92.90%
+ 101  MFS-443    0.00%    passed     88.60%
+ 102  MFS-454    0.00%    passed     84.98%
+ 103  MFS-470    0.00%    passed     93.11%
+ 104  MFS-482    0.00%    passed     85.66%
+ 105  MFS-673    0.00%    passed     88.75%
+ 106  MFS-675    0.00%    passed     94.78%
+ 107  MFS-677    0.00%    passed     76.77%
+ 108  MFS-690    0.00%    passed     81.12%
+ 109  MFS-812    0.00%    passed     83.56%
+ 110  MFS-706    0.00%    passed     75.55%
+****  TOTAL      0.00%  1 sequences failed composition chi2 test (p-value<5%; df=3)
+NOTE: MFS-583 is identical to MFS-41 but kept for subsequent analysis
+NOTE: MFS-129 is identical to MFS-355 but kept for subsequent analysis
+NOTE: MFS-319 is identical to MFS-62 but kept for subsequent analysis
+NOTE: MFS-194 is identical to MFS-754 but kept for subsequent analysis
+NOTE: MFS-414 is identical to MFS-636 but kept for subsequent analysis
+NOTE: MFS-292 is identical to MFS-156 but kept for subsequent analysis
+NOTE: 3 identical sequences (see below) will be ignored for subsequent analysis
+NOTE: MFS-321 (identical to MFS-41) is ignored but added at the end
+NOTE: MFS-171 (identical to MFS-754) is ignored but added at the end
+NOTE: MFS-767 (identical to MFS-754) is ignored but added at the end
+Alignment was printed to /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.uniqueseq.phy
+
+For your convenience alignment with unique sequences printed to /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.uniqueseq.phy
+
+
+Create initial parsimony tree by phylogenetic likelihood library (PLL)... 0.051 seconds
+Perform fast likelihood tree search using GTR+ASC model...
+Estimate model parameters (epsilon = 5.000)
+Perform nearest neighbor interchange...
+Estimate model parameters (epsilon = 1.000)
+1. Initial log-likelihood: -53944.784
+Optimal log-likelihood: -53944.656
+Rate parameters:  A-C: 1.06781  A-G: 3.24836  A-T: 0.41270  C-G: 0.61458  C-T: 3.26337  G-T: 1.00000
+Base frequencies:  A: 0.157  C: 0.340  G: 0.350  T: 0.154
+Parameters optimization took 1 rounds (0.028 sec)
+Time for fast ML tree search: 1.013 seconds
+
+NOTE: ModelFinder requires 42 MB RAM!
+ModelFinder will test up to 242 DNA models (sample size: 8456 epsilon: 0.100) ...
+ No. Model         -LnL         df  AIC          AICc         BIC
+  1  GTR+F+ASC     53944.596    219 108327.193   108338.892   109869.529
+  2  GTR+F+ASC+G4  53941.200    220 108322.399   108334.208   109871.778
+  3  GTR+F+ASC+R2  53895.191    221 108232.381   108244.298   109788.803
+  4  GTR+F+ASC+R3  53895.000    223 108236.000   108248.136   109806.507
+ 14  SYM+ASC+R2    53918.910    218 108273.820   108285.412   109809.114
+ 25  TVM+F+ASC+R2  53897.382    220 108234.764   108246.572   109784.143
+ 36  TVMe+ASC+R2   53919.899    217 108273.798   108285.283   109802.049
+ 47  TIM3+F+ASC+R2 54036.128    219 108510.255   108521.955   110052.592
+ 58  TIM3e+ASC+R2  54204.317    216 108840.634   108852.012   110361.843
+ 69  TIM2+F+ASC+R2 54030.465    219 108498.930   108510.629   110041.266
+ 80  TIM2e+ASC+R2  54229.656    216 108891.312   108902.691   110412.521
+ 91  TIM+F+ASC+R2  53910.663    219 108259.325   108271.025   109801.661
+102  TIMe+ASC+R2   54354.022    216 109140.044   109151.422   110661.253
+113  TPM3u+F+ASC+R2 54035.647    218 108507.293   108518.885   110042.587
+124  TPM3+ASC+R2   54204.765    215 108839.530   108850.802   110353.696
+135  TPM2u+F+ASC+R2 54030.079    218 108496.159   108507.751   110031.453
+146  TPM2+ASC+R2   54230.242    215 108890.483   108901.755   110404.649
+157  K3Pu+F+ASC+R2 53910.367    218 108256.734   108268.326   109792.028
+168  K3P+ASC+R2    54354.723    215 109139.447   109150.719   110653.613
+179  TN+F+ASC+R2   54038.021    218 108512.043   108523.635   110047.337
+190  TNe+ASC+R2    54383.452    215 109196.905   109208.177   110711.071
+201  HKY+F+ASC+R2  54037.749    217 108509.499   108520.983   110037.750
+212  K2P+ASC+R2    54384.191    214 109196.381   109207.547   110703.504
+223  F81+F+ASC+R2  56170.337    216 112772.673   112784.051   114293.882
+234  JC+ASC+R2     56076.465    213 112578.929   112589.990   114079.010
+Akaike Information Criterion:           GTR+F+ASC+R2
+Corrected Akaike Information Criterion: GTR+F+ASC+R2
+Bayesian Information Criterion:         TVM+F+ASC+R2
+Best-fit model: TVM+F+ASC+R2 chosen according to BIC
+
+All model information printed to /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.model.gz
+CPU time for ModelFinder: 11.113 seconds (0h:0m:11s)
+Wall-clock time for ModelFinder: 11.438 seconds (0h:0m:11s)
+
+NOTE: 8 MB RAM (0 GB) is required!
+Estimate model parameters (epsilon = 0.100)
+1. Initial log-likelihood: -56170.377
+2. Current log-likelihood: -53896.240
+Optimal log-likelihood: -53896.239
+Rate parameters:  A-C: 1.05579  A-G: 3.21389  A-T: 0.40349  C-G: 0.61017  C-T: 3.21389  G-T: 1.00000
+Base frequencies:  A: 0.157  C: 0.340  G: 0.350  T: 0.154
+Site proportion and rates:  (0.991,0.760) (0.009,27.110)
+Parameters optimization took 2 rounds (0.200 sec)
+Wrote distance file to... 
+Computing ML distances based on estimated model parameters...
+Calculating distance matrix: done in 0.0271293 secs using 98.94% CPU
+Computing ML distances took 0.027700 sec (of wall-clock time) 0.027221 sec (of CPU time)
+Setting up auxiliary I and S matrices: done in 0.000280714 secs using 97.96% CPU
+Computing RapidNJ tree took 0.001423 sec (of wall-clock time) 0.001225 sec (of CPU time)
+Log-likelihood of RapidNJ tree: -54068.853
+--------------------------------------------------------------------
+|             INITIALIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Generating 98 parsimony trees... 4.890 second
+Computing log-likelihood of 98 initial trees ... 1.433 seconds
+Current best score: -53896.239
+
+Do NNI search on 20 best initial trees
+Estimate model parameters (epsilon = 0.100)
+BETTER TREE FOUND at iteration 1: -53896.238
+Iteration 10 / LogL: -53942.116 / Time: 0h:0m:40s
+Iteration 20 / LogL: -53942.820 / Time: 0h:1m:24s
+Finish initializing candidate tree set (18)
+Current best tree score: -53896.238 / CPU time: 71.743
+Number of iterations: 20
+--------------------------------------------------------------------
+|               OPTIMIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Iteration 30 / LogL: -53949.227 / Time: 0h:1m:31s (0h:3m:15s left)
+Iteration 40 / LogL: -53952.207 / Time: 0h:1m:36s (0h:2m:13s left)
+Iteration 50 / LogL: -53942.966 / Time: 0h:1m:43s (0h:1m:35s left)
+Iteration 60 / LogL: -53950.015 / Time: 0h:1m:54s (0h:1m:11s left)
+Iteration 70 / LogL: -53944.184 / Time: 0h:2m:1s (0h:0m:49s left)
+Iteration 80 / LogL: -53978.896 / Time: 0h:2m:7s (0h:0m:30s left)
+Iteration 90 / LogL: -53952.914 / Time: 0h:2m:14s (0h:0m:15s left)
+Iteration 100 / LogL: -53950.031 / Time: 0h:2m:22s (0h:0m:1s left)
+TREE SEARCH COMPLETED AFTER 102 ITERATIONS / Time: 0h:2m:23s
+
+--------------------------------------------------------------------
+|                    FINALIZING TREE SEARCH                        |
+--------------------------------------------------------------------
+Performs final model parameters optimization
+Estimate model parameters (epsilon = 0.010)
+1. Initial log-likelihood: -53896.238
+Optimal log-likelihood: -53896.238
+Rate parameters:  A-C: 1.05565  A-G: 3.21444  A-T: 0.40375  C-G: 0.61017  C-T: 3.21444  G-T: 1.00000
+Base frequencies:  A: 0.157  C: 0.340  G: 0.350  T: 0.154
+Site proportion and rates:  (0.991,0.760) (0.009,27.120)
+Parameters optimization took 1 rounds (0.104 sec)
+BEST SCORE FOUND : -53896.238
+
+Testing tree branches by aBayes parametric test...
+0.070 sec.
+Collapsing near-zero internal branches... 51 collapsed
+Total tree length: 0.005
+
+Total number of iterations: 102
+CPU time used for tree search: 71.363 sec (0h:1m:11s)
+Wall-clock time used for tree search: 131.070 sec (0h:2m:11s)
+Total CPU time used: 83.661 sec (0h:1m:23s)
+Total wall-clock time used: 143.847 sec (0h:2m:23s)
+
+Analysis results written to: 
+  IQ-TREE report:                /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.iqtree
+  Maximum-likelihood tree:       /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.treefile
+  Likelihood distances:          /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.mldist
+  Screen log file:               /home/sak0914/MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/LR_samples/SNP_concatenate_filtered.fasta.log
+
+Date and Time: Thu Dec 11 08:20:40 2025

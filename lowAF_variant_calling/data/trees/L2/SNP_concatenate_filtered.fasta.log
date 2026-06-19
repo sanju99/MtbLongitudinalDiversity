@@ -1,0 +1,676 @@
+IQ-TREE multicore version 2.4.0 for Linux x86 64-bit built Feb 12 2025
+Developed by Bui Quang Minh, Nguyen Lam Tung, Olga Chernomor, Heiko Schmidt,
+Dominik Schrempf, Michael Woodhams, Ly Trong Nhan, Thomas Wong
+
+Host:    compute-b-16-175.o2.rc.hms.harvard.edu (AVX512, FMA3, 1006 GB RAM)
+Command: iqtree -s MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta -m MFP+ASC --abayes
+Seed:    119813 (Using SPRNG - Scalable Parallel Random Number Generator)
+Time:    Mon Dec  1 12:03:15 2025
+Kernel:  AVX+FMA - 1 threads (1 CPU cores detected)
+
+Reading alignment file MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta ... Fasta format detected
+Reading fasta file: done in 0.0212476 secs using 98.71% CPU
+Alignment most likely contains DNA/RNA sequences
+Alignment has 366 sequences with 2080 columns, 988 distinct patterns
+1745 parsimony-informative, 335 singleton sites, 0 constant sites
+         Gap/Ambiguity  Composition  p-value
+Analyzing sequences: done in 0.00087766 secs using 99.47% CPU
+   1  MFS-1      0.00%    passed     99.30%
+   2  MFS-108    0.00%    passed     84.15%
+   3  MFS-109    0.00%    passed     84.15%
+   4  MFS-110    0.00%    passed     99.74%
+   5  MFS-113    0.00%    passed     99.21%
+   6  MFS-114    0.00%    passed     91.85%
+   7  MFS-115    0.00%    passed     98.19%
+   8  MFS-116    0.00%    passed     98.19%
+   9  MFS-119    0.00%    passed     99.12%
+  10  MFS-120    0.00%    passed     99.12%
+  11  MFS-121    0.00%    passed     98.86%
+  12  MFS-122    0.00%    passed     99.75%
+  13  MFS-123    0.00%    passed     99.81%
+  14  MFS-124    0.00%    passed     99.81%
+  15  MFS-129    0.00%    passed     99.25%
+  16  MFS-130    0.00%    passed     99.25%
+  17  MFS-132    0.00%    passed     99.65%
+  18  MFS-133    0.00%    passed     99.17%
+  19  MFS-138    0.00%    passed     99.91%
+  20  MFS-139    0.00%    passed     99.78%
+  21  MFS-142    0.00%    passed     98.58%
+  22  MFS-143    0.00%    passed     98.58%
+  23  MFS-144    0.00%    passed     95.34%
+  24  MFS-156    0.00%    passed     99.23%
+  25  MFS-157    0.00%    passed     98.04%
+  26  MFS-158    0.00%    passed     95.30%
+  27  MFS-159    0.00%    passed     95.30%
+  28  MFS-16     0.00%    passed     93.71%
+  29  MFS-161    0.00%    passed     98.81%
+  30  MFS-162    0.00%    passed     97.67%
+  31  MFS-163    0.00%    passed     98.12%
+  32  MFS-164    0.00%    passed     99.53%
+  33  MFS-165    0.00%    passed     99.53%
+  34  MFS-166    0.00%    passed     99.25%
+  35  MFS-167    0.00%    passed     99.11%
+  36  MFS-169    0.00%    passed     99.23%
+  37  MFS-17     0.00%    passed     93.71%
+  38  MFS-170    0.00%    passed     99.23%
+  39  MFS-172    0.00%    passed     99.76%
+  40  MFS-173    0.00%    passed     99.76%
+  41  MFS-178    0.00%    passed     65.95%
+  42  MFS-18     0.00%    passed     96.89%
+  43  MFS-182    0.00%    passed     97.34%
+  44  MFS-184    0.00%    passed     70.86%
+  45  MFS-187    0.00%    passed     69.25%
+  46  MFS-188    0.00%    passed     69.25%
+  47  MFS-19     0.00%    passed     96.89%
+  48  MFS-199    0.00%    passed     85.19%
+  49  MFS-2      0.00%    passed     99.30%
+  50  MFS-22     0.00%    passed     99.36%
+  51  MFS-259    0.00%    passed     89.59%
+  52  MFS-263    0.00%    passed     99.78%
+  53  MFS-264    0.00%    passed     99.65%
+  54  MFS-266    0.00%    passed     99.75%
+  55  MFS-268    0.00%    passed     99.54%
+  56  MFS-274    0.00%    passed     99.83%
+  57  MFS-275    0.00%    passed     99.58%
+  58  MFS-276    0.00%    passed     99.54%
+  59  MFS-277    0.00%    passed     99.74%
+  60  MFS-278    0.00%    passed     96.92%
+  61  MFS-279    0.00%    passed     80.18%
+  62  MFS-282    0.00%    passed     99.34%
+  63  MFS-283    0.00%    passed     99.34%
+  64  MFS-284    0.00%    passed     99.32%
+  65  MFS-287    0.00%    passed     65.26%
+  66  MFS-288    0.00%    passed     65.26%
+  67  MFS-291    0.00%    passed     99.72%
+  68  MFS-292    0.00%    passed     99.23%
+  69  MFS-294    0.00%    passed     97.95%
+  70  MFS-295    0.00%    passed     97.95%
+  71  MFS-3      0.00%    passed     97.39%
+  72  MFS-30     0.00%    passed     99.60%
+  73  MFS-302    0.00%    passed     97.57%
+  74  MFS-303    0.00%    passed     99.71%
+  75  MFS-305    0.00%    passed     99.16%
+  76  MFS-306    0.00%    passed     99.36%
+  77  MFS-31     0.00%    passed     99.29%
+  78  MFS-312    0.00%    passed     89.59%
+  79  MFS-315    0.00%    passed     99.83%
+  80  MFS-316    0.00%    passed     99.83%
+  81  MFS-318    0.00%    passed     96.74%
+  82  MFS-319    0.00%    passed     99.60%
+  83  MFS-32     0.00%    passed     99.29%
+  84  MFS-320    0.00%    passed     96.51%
+  85  MFS-321    0.00%    passed     96.91%
+  86  MFS-322    0.00%    passed     96.91%
+  87  MFS-323    0.00%    passed     99.71%
+  88  MFS-324    0.00%    passed     98.90%
+  89  MFS-325    0.00%    passed     99.36%
+  90  MFS-326    0.00%    passed     99.36%
+  91  MFS-33     0.00%    passed     98.06%
+  92  MFS-330    0.00%    passed     96.51%
+  93  MFS-332    0.00%    passed     99.45%
+  94  MFS-333    0.00%    passed     99.45%
+  95  MFS-337    0.00%    passed     99.03%
+  96  MFS-338    0.00%    passed     99.92%
+  97  MFS-339    0.00%    passed     99.92%
+  98  MFS-34     0.00%    passed     98.06%
+  99  MFS-340    0.00%    passed     99.76%
+ 100  MFS-341    0.00%    passed     99.76%
+ 101  MFS-342    0.00%    passed     99.86%
+ 102  MFS-343    0.00%    passed     99.86%
+ 103  MFS-344    0.00%    passed     99.86%
+ 104  MFS-345    0.00%    passed     99.86%
+ 105  MFS-346    0.00%    passed     98.83%
+ 106  MFS-347    0.00%    passed     98.83%
+ 107  MFS-348    0.00%    passed     99.66%
+ 108  MFS-349    0.00%    passed     99.61%
+ 109  MFS-355    0.00%    passed     99.25%
+ 110  MFS-356    0.00%    passed     98.97%
+ 111  MFS-357    0.00%    passed     94.18%
+ 112  MFS-358    0.00%    passed     94.18%
+ 113  MFS-359    0.00%    passed     99.52%
+ 114  MFS-360    0.00%    passed     96.53%
+ 115  MFS-361    0.00%    passed     96.53%
+ 116  MFS-362    0.00%    passed     99.00%
+ 117  MFS-363    0.00%    passed     99.00%
+ 118  MFS-368    0.00%    passed     95.21%
+ 119  MFS-369    0.00%    passed     99.26%
+ 120  MFS-37     0.00%    passed     91.18%
+ 121  MFS-370    0.00%    passed     98.42%
+ 122  MFS-371    0.00%    passed     98.92%
+ 123  MFS-374    0.00%    passed     99.23%
+ 124  MFS-375    0.00%    passed     99.23%
+ 125  MFS-38     0.00%    passed     91.18%
+ 126  MFS-383    0.00%    passed     80.18%
+ 127  MFS-388    0.00%    passed     69.00%
+ 128  MFS-389    0.00%    passed     69.00%
+ 129  MFS-397    0.00%    passed     76.87%
+ 130  MFS-398    0.00%    passed     76.87%
+ 131  MFS-399    0.00%    passed     98.20%
+ 132  MFS-40     0.00%    passed     99.76%
+ 133  MFS-400    0.00%    passed     98.20%
+ 134  MFS-402    0.00%    passed     97.85%
+ 135  MFS-403    0.00%    passed     97.67%
+ 136  MFS-404    0.00%    passed     67.84%
+ 137  MFS-405    0.00%    passed     67.84%
+ 138  MFS-406    0.00%    passed     97.67%
+ 139  MFS-407    0.00%    passed     98.41%
+ 140  MFS-408    0.00%    passed     99.56%
+ 141  MFS-409    0.00%    passed     99.56%
+ 142  MFS-41     0.00%    passed     98.09%
+ 143  MFS-414    0.00%    passed     99.22%
+ 144  MFS-415    0.00%    passed     99.22%
+ 145  MFS-418    0.00%    passed     99.80%
+ 146  MFS-419    0.00%    passed     99.80%
+ 147  MFS-42     0.00%    passed     98.09%
+ 148  MFS-420    0.00%    passed     82.49%
+ 149  MFS-421    0.00%    passed     82.49%
+ 150  MFS-426    0.00%    passed     97.69%
+ 151  MFS-434    0.00%    passed     95.15%
+ 152  MFS-435    0.00%    passed     99.30%
+ 153  MFS-436    0.00%    passed     99.30%
+ 154  MFS-441    0.00%    passed     96.37%
+ 155  MFS-442    0.00%    passed     96.37%
+ 156  MFS-443    0.00%    passed     98.70%
+ 157  MFS-444    0.00%    passed     99.65%
+ 158  MFS-445    0.00%    passed     99.48%
+ 159  MFS-446    0.00%    passed     99.42%
+ 160  MFS-447    0.00%    passed     99.42%
+ 161  MFS-448    0.00%    passed     99.88%
+ 162  MFS-449    0.00%    passed     99.88%
+ 163  MFS-45     0.00%    passed     99.19%
+ 164  MFS-452    0.00%    passed     99.29%
+ 165  MFS-454    0.00%    passed     70.43%
+ 166  MFS-455    0.00%    passed     70.43%
+ 167  MFS-458    0.00%    passed     99.96%
+ 168  MFS-459    0.00%    passed     99.96%
+ 169  MFS-46     0.00%    passed     99.19%
+ 170  MFS-462    0.00%    passed     96.97%
+ 171  MFS-463    0.00%    passed     96.97%
+ 172  MFS-464    0.00%    passed     99.60%
+ 173  MFS-465    0.00%    passed     99.60%
+ 174  MFS-466    0.00%    passed     99.40%
+ 175  MFS-467    0.00%    passed     94.73%
+ 176  MFS-468    0.00%    passed     94.73%
+ 177  MFS-469    0.00%    passed     99.47%
+ 178  MFS-471    0.00%    passed     99.91%
+ 179  MFS-472    0.00%    passed     99.91%
+ 180  MFS-474    0.00%    passed     79.88%
+ 181  MFS-475    0.00%    passed     79.88%
+ 182  MFS-476    0.00%    passed     99.10%
+ 183  MFS-478    0.00%    passed     74.99%
+ 184  MFS-479    0.00%    passed     99.47%
+ 185  MFS-480    0.00%    passed     99.45%
+ 186  MFS-484    0.00%    passed     98.34%
+ 187  MFS-49     0.00%    passed     98.59%
+ 188  MFS-50     0.00%    passed     98.59%
+ 189  MFS-51     0.00%    passed     98.95%
+ 190  MFS-511    0.00%    passed     93.48%
+ 191  MFS-512    0.00%    passed     91.85%
+ 192  MFS-514    0.00%    passed     97.65%
+ 193  MFS-515    0.00%    passed     97.65%
+ 194  MFS-52     0.00%    passed     98.95%
+ 195  MFS-528    0.00%    passed     89.67%
+ 196  MFS-529    0.00%    passed     89.67%
+ 197  MFS-531    0.00%    passed     99.46%
+ 198  MFS-532    0.00%    passed     99.46%
+ 199  MFS-533    0.00%    passed     99.13%
+ 200  MFS-534    0.00%    passed     99.13%
+ 201  MFS-537    0.00%    passed     99.11%
+ 202  MFS-538    0.00%    passed     99.11%
+ 203  MFS-539    0.00%    passed     99.17%
+ 204  MFS-54     0.00%    passed     99.83%
+ 205  MFS-540    0.00%    passed     99.17%
+ 206  MFS-548    0.00%    passed     99.36%
+ 207  MFS-549    0.00%    passed     99.36%
+ 208  MFS-55     0.00%    passed     93.84%
+ 209  MFS-550    0.00%    passed     91.01%
+ 210  MFS-551    0.00%    passed     92.35%
+ 211  MFS-552    0.00%    passed     93.98%
+ 212  MFS-555    0.00%    passed     99.78%
+ 213  MFS-556    0.00%    passed     99.78%
+ 214  MFS-558    0.00%    passed     97.83%
+ 215  MFS-561    0.00%    passed     97.88%
+ 216  MFS-563    0.00%    passed     99.29%
+ 217  MFS-575    0.00%    passed     93.71%
+ 218  MFS-576    0.00%    passed     93.71%
+ 219  MFS-578    0.00%    passed     99.67%
+ 220  MFS-58     0.00%    passed     98.64%
+ 221  MFS-583    0.00%    passed     98.09%
+ 222  MFS-59     0.00%    passed     98.64%
+ 223  MFS-592    0.00%    passed     99.87%
+ 224  MFS-593    0.00%    passed     99.87%
+ 225  MFS-599    0.00%    passed     99.26%
+ 226  MFS-601    0.00%    passed     99.57%
+ 227  MFS-606    0.00%    passed     97.04%
+ 228  MFS-607    0.00%    passed     97.04%
+ 229  MFS-610    0.00%    passed     99.57%
+ 230  MFS-611    0.00%    passed     98.53%
+ 231  MFS-612    0.00%    passed     94.29%
+ 232  MFS-613    0.00%    passed     94.29%
+ 233  MFS-616    0.00%    passed     85.19%
+ 234  MFS-62     0.00%    passed     99.60%
+ 235  MFS-623    0.00%    passed     96.79%
+ 236  MFS-624    0.00%    passed     96.79%
+ 237  MFS-625    0.00%    passed     74.99%
+ 238  MFS-626    0.00%    passed     74.99%
+ 239  MFS-629    0.00%    passed     91.85%
+ 240  MFS-63     0.00%    passed     99.60%
+ 241  MFS-632    0.00%    passed     87.78%
+ 242  MFS-636    0.00%    passed     99.52%
+ 243  MFS-638    0.00%    passed     99.23%
+ 244  MFS-639    0.00%    passed     99.23%
+ 245  MFS-64     0.00%    passed     99.29%
+ 246  MFS-640    0.00%    passed     98.86%
+ 247  MFS-641    0.00%    passed     99.55%
+ 248  MFS-642    0.00%    passed     99.55%
+ 249  MFS-644    0.00%    passed     98.25%
+ 250  MFS-645    0.00%    passed     98.25%
+ 251  MFS-646    0.00%    passed     74.99%
+ 252  MFS-647    0.00%    passed     74.99%
+ 253  MFS-65     0.00%    passed     99.29%
+ 254  MFS-654    0.00%    passed     99.71%
+ 255  MFS-658    0.00%    passed     99.47%
+ 256  MFS-66     0.00%    passed     99.56%
+ 257  MFS-662    0.00%    passed     99.40%
+ 258  MFS-663    0.00%    passed     99.10%
+ 259  MFS-667    0.00%    passed     99.45%
+ 260  MFS-669    0.00%    passed     98.34%
+ 261  MFS-67     0.00%    passed     99.56%
+ 262  MFS-671    0.00%    passed     98.44%
+ 263  MFS-672    0.00%    passed     99.29%
+ 264  MFS-673    0.00%    passed     98.42%
+ 265  MFS-676    0.00%    passed     98.75%
+ 266  MFS-682    0.00%    passed     97.16%
+ 267  MFS-694    0.00%    passed     95.01%
+ 268  MFS-7      0.00%    passed     99.72%
+ 269  MFS-70     0.00%    passed     67.08%
+ 270  MFS-700    0.00%    passed     98.41%
+ 271  MFS-703    0.00%    passed     98.23%
+ 272  MFS-704    0.00%    passed     96.77%
+ 273  MFS-706    0.00%    passed     75.38%
+ 274  MFS-708    0.00%    passed     99.75%
+ 275  MFS-709    0.00%    passed     98.81%
+ 276  MFS-71     0.00%    passed     99.51%
+ 277  MFS-713    0.00%    passed     97.57%
+ 278  MFS-715    0.00%    passed     98.87%
+ 279  MFS-719    0.00%    passed     99.29%
+ 280  MFS-720    0.00%    passed     99.29%
+ 281  MFS-723    0.00%    passed     99.51%
+ 282  MFS-724    0.00%    passed     99.51%
+ 283  MFS-732    0.00%    passed     95.73%
+ 284  MFS-733    0.00%    passed     95.73%
+ 285  MFS-734    0.00%    passed     98.70%
+ 286  MFS-735    0.00%    passed     98.70%
+ 287  MFS-738    0.00%    passed     86.16%
+ 288  MFS-739    0.00%    passed     99.55%
+ 289  MFS-74     0.00%    passed     98.93%
+ 290  MFS-740    0.00%    passed     99.55%
+ 291  MFS-75     0.00%    passed     98.93%
+ 292  MFS-753    0.00%    passed     98.83%
+ 293  MFS-756    0.00%    passed     90.84%
+ 294  MFS-757    0.00%    passed     96.28%
+ 295  MFS-758    0.00%    passed     95.80%
+ 296  MFS-759    0.00%    passed     95.80%
+ 297  MFS-76     0.00%    passed     99.12%
+ 298  MFS-761    0.00%    passed     98.90%
+ 299  MFS-762    0.00%    passed     97.57%
+ 300  MFS-763    0.00%    passed     99.32%
+ 301  MFS-765    0.00%    passed     94.16%
+ 302  MFS-766    0.00%    passed     99.76%
+ 303  MFS-768    0.00%    passed     97.69%
+ 304  MFS-77     0.00%    passed     99.12%
+ 305  MFS-770    0.00%    passed     98.75%
+ 306  MFS-771    0.00%    passed     96.76%
+ 307  MFS-772    0.00%    passed     99.29%
+ 308  MFS-777    0.00%    passed     74.99%
+ 309  MFS-778    0.00%    passed     99.47%
+ 310  MFS-780    0.00%    passed     98.44%
+ 311  MFS-789    0.00%    passed     98.75%
+ 312  MFS-791    0.00%    passed     97.94%
+ 313  MFS-8      0.00%    passed     99.81%
+ 314  MFS-80     0.00%    passed     98.87%
+ 315  MFS-801    0.00%    passed     94.58%
+ 316  MFS-805    0.00%    passed     95.01%
+ 317  MFS-806    0.00%    passed     99.76%
+ 318  MFS-807    0.00%    passed     99.76%
+ 319  MFS-809    0.00%    passed     98.53%
+ 320  MFS-811    0.00%    passed     99.71%
+ 321  MFS-812    0.00%    passed     60.21%
+ 322  MFS-817    0.00%    passed     98.41%
+ 323  MFS-820    0.00%    passed     98.23%
+ 324  MFS-821    0.00%    passed     98.41%
+ 325  MFS-824    0.00%    passed     99.48%
+ 326  MFS-825    0.00%    passed     99.48%
+ 327  MFS-826    0.00%    passed     99.75%
+ 328  MFS-830    0.00%    passed     97.57%
+ 329  MFS-832    0.00%    passed     98.87%
+ 330  MFS-836    0.00%    passed     98.49%
+ 331  MFS-837    0.00%    passed     99.65%
+ 332  MFS-838    0.00%    passed     99.65%
+ 333  MFS-842    0.00%    passed     96.74%
+ 334  MFS-843    0.00%    passed     96.74%
+ 335  MFS-846    0.00%    passed     99.92%
+ 336  MFS-847    0.00%    passed     99.14%
+ 337  MFS-856    0.00%    passed     98.53%
+ 338  MFS-857    0.00%    passed     98.53%
+ 339  MFS-858    0.00%    passed     69.59%
+ 340  MFS-859    0.00%    passed     67.94%
+ 341  MFS-86     0.00%    passed     99.62%
+ 342  MFS-860    0.00%    passed     98.71%
+ 343  MFS-861    0.00%    passed     98.71%
+ 344  MFS-864    0.00%    passed     94.39%
+ 345  MFS-865    0.00%    passed     94.39%
+ 346  MFS-866    0.00%    passed     99.60%
+ 347  MFS-867    0.00%    passed     99.78%
+ 348  MFS-868    0.00%    passed     98.64%
+ 349  MFS-869    0.00%    passed     98.64%
+ 350  MFS-87     0.00%    passed     99.62%
+ 351  MFS-871    0.00%    passed     86.16%
+ 352  MFS-872    0.00%    passed     86.16%
+ 353  MFS-88     0.00%    passed     99.58%
+ 354  MFS-880    0.00%    passed     97.34%
+ 355  MFS-881    0.00%    passed     80.18%
+ 356  MFS-882    0.00%    passed     97.34%
+ 357  MFS-885    0.00%    passed     99.29%
+ 358  MFS-886    0.00%    passed     98.75%
+ 359  MFS-887    0.00%    passed     98.75%
+ 360  MFS-89     0.00%    passed     99.58%
+ 361  MFS-890    0.00%    passed     99.55%
+ 362  MFS-891    0.00%    passed     98.57%
+ 363  MFS-893    0.00%    passed     99.65%
+ 364  MFS-93     0.00%    passed     99.78%
+ 365  MFS-94     0.00%    passed     99.78%
+ 366  MFS-97     0.00%    passed     96.07%
+****  TOTAL      0.00%  0 sequences failed composition chi2 test (p-value<5%; df=3)
+NOTE: MFS-2 is identical to MFS-1 but kept for subsequent analysis
+NOTE: MFS-109 is identical to MFS-108 but kept for subsequent analysis
+NOTE: MFS-277 is identical to MFS-110 but kept for subsequent analysis
+NOTE: MFS-629 is identical to MFS-114 but kept for subsequent analysis
+NOTE: MFS-116 is identical to MFS-115 but kept for subsequent analysis
+NOTE: MFS-120 is identical to MFS-119 but kept for subsequent analysis
+NOTE: MFS-640 is identical to MFS-121 but kept for subsequent analysis
+NOTE: MFS-124 is identical to MFS-123 but kept for subsequent analysis
+NOTE: MFS-130 is identical to MFS-129 but kept for subsequent analysis
+NOTE: MFS-263 is identical to MFS-139 but kept for subsequent analysis
+NOTE: MFS-143 is identical to MFS-142 but kept for subsequent analysis
+NOTE: MFS-169 is identical to MFS-156 but kept for subsequent analysis
+NOTE: MFS-159 is identical to MFS-158 but kept for subsequent analysis
+NOTE: MFS-17 is identical to MFS-16 but kept for subsequent analysis
+NOTE: MFS-165 is identical to MFS-164 but kept for subsequent analysis
+NOTE: MFS-173 is identical to MFS-172 but kept for subsequent analysis
+NOTE: MFS-19 is identical to MFS-18 but kept for subsequent analysis
+NOTE: MFS-880 is identical to MFS-182 but kept for subsequent analysis
+NOTE: MFS-188 is identical to MFS-187 but kept for subsequent analysis
+NOTE: MFS-616 is identical to MFS-199 but kept for subsequent analysis
+NOTE: MFS-312 is identical to MFS-259 but kept for subsequent analysis
+NOTE: MFS-276 is identical to MFS-268 but kept for subsequent analysis
+NOTE: MFS-54 is identical to MFS-274 but kept for subsequent analysis
+NOTE: MFS-88 is identical to MFS-275 but kept for subsequent analysis
+NOTE: MFS-383 is identical to MFS-279 but kept for subsequent analysis
+NOTE: MFS-283 is identical to MFS-282 but kept for subsequent analysis
+NOTE: MFS-763 is identical to MFS-284 but kept for subsequent analysis
+NOTE: MFS-288 is identical to MFS-287 but kept for subsequent analysis
+NOTE: MFS-295 is identical to MFS-294 but kept for subsequent analysis
+NOTE: MFS-319 is identical to MFS-30 but kept for subsequent analysis
+NOTE: MFS-713 is identical to MFS-302 but kept for subsequent analysis
+NOTE: MFS-323 is identical to MFS-303 but kept for subsequent analysis
+NOTE: MFS-325 is identical to MFS-306 but kept for subsequent analysis
+NOTE: MFS-32 is identical to MFS-31 but kept for subsequent analysis
+NOTE: MFS-316 is identical to MFS-315 but kept for subsequent analysis
+NOTE: MFS-842 is identical to MFS-318 but kept for subsequent analysis
+NOTE: MFS-330 is identical to MFS-320 but kept for subsequent analysis
+NOTE: MFS-322 is identical to MFS-321 but kept for subsequent analysis
+NOTE: MFS-761 is identical to MFS-324 but kept for subsequent analysis
+NOTE: MFS-34 is identical to MFS-33 but kept for subsequent analysis
+NOTE: MFS-333 is identical to MFS-332 but kept for subsequent analysis
+NOTE: MFS-339 is identical to MFS-338 but kept for subsequent analysis
+NOTE: MFS-341 is identical to MFS-340 but kept for subsequent analysis
+NOTE: MFS-343 is identical to MFS-342 but kept for subsequent analysis
+NOTE: MFS-345 is identical to MFS-344 but kept for subsequent analysis
+NOTE: MFS-347 is identical to MFS-346 but kept for subsequent analysis
+NOTE: MFS-358 is identical to MFS-357 but kept for subsequent analysis
+NOTE: MFS-361 is identical to MFS-360 but kept for subsequent analysis
+NOTE: MFS-363 is identical to MFS-362 but kept for subsequent analysis
+NOTE: MFS-599 is identical to MFS-369 but kept for subsequent analysis
+NOTE: MFS-38 is identical to MFS-37 but kept for subsequent analysis
+NOTE: MFS-389 is identical to MFS-388 but kept for subsequent analysis
+NOTE: MFS-398 is identical to MFS-397 but kept for subsequent analysis
+NOTE: MFS-400 is identical to MFS-399 but kept for subsequent analysis
+NOTE: MFS-406 is identical to MFS-403 but kept for subsequent analysis
+NOTE: MFS-405 is identical to MFS-404 but kept for subsequent analysis
+NOTE: MFS-409 is identical to MFS-408 but kept for subsequent analysis
+NOTE: MFS-42 is identical to MFS-41 but kept for subsequent analysis
+NOTE: MFS-415 is identical to MFS-414 but kept for subsequent analysis
+NOTE: MFS-419 is identical to MFS-418 but kept for subsequent analysis
+NOTE: MFS-421 is identical to MFS-420 but kept for subsequent analysis
+NOTE: MFS-768 is identical to MFS-426 but kept for subsequent analysis
+NOTE: MFS-436 is identical to MFS-435 but kept for subsequent analysis
+NOTE: MFS-442 is identical to MFS-441 but kept for subsequent analysis
+NOTE: MFS-824 is identical to MFS-445 but kept for subsequent analysis
+NOTE: MFS-447 is identical to MFS-446 but kept for subsequent analysis
+NOTE: MFS-449 is identical to MFS-448 but kept for subsequent analysis
+NOTE: MFS-46 is identical to MFS-45 but kept for subsequent analysis
+NOTE: MFS-64 is identical to MFS-452 but kept for subsequent analysis
+NOTE: MFS-455 is identical to MFS-454 but kept for subsequent analysis
+NOTE: MFS-459 is identical to MFS-458 but kept for subsequent analysis
+NOTE: MFS-463 is identical to MFS-462 but kept for subsequent analysis
+NOTE: MFS-662 is identical to MFS-466 but kept for subsequent analysis
+NOTE: MFS-468 is identical to MFS-467 but kept for subsequent analysis
+NOTE: MFS-472 is identical to MFS-471 but kept for subsequent analysis
+NOTE: MFS-475 is identical to MFS-474 but kept for subsequent analysis
+NOTE: MFS-663 is identical to MFS-476 but kept for subsequent analysis
+NOTE: MFS-625 is identical to MFS-478 but kept for subsequent analysis
+NOTE: MFS-778 is identical to MFS-479 but kept for subsequent analysis
+NOTE: MFS-667 is identical to MFS-480 but kept for subsequent analysis
+NOTE: MFS-669 is identical to MFS-484 but kept for subsequent analysis
+NOTE: MFS-50 is identical to MFS-49 but kept for subsequent analysis
+NOTE: MFS-52 is identical to MFS-51 but kept for subsequent analysis
+NOTE: MFS-515 is identical to MFS-514 but kept for subsequent analysis
+NOTE: MFS-529 is identical to MFS-528 but kept for subsequent analysis
+NOTE: MFS-532 is identical to MFS-531 but kept for subsequent analysis
+NOTE: MFS-534 is identical to MFS-533 but kept for subsequent analysis
+NOTE: MFS-538 is identical to MFS-537 but kept for subsequent analysis
+NOTE: MFS-540 is identical to MFS-539 but kept for subsequent analysis
+NOTE: MFS-549 is identical to MFS-548 but kept for subsequent analysis
+NOTE: MFS-59 is identical to MFS-58 but kept for subsequent analysis
+NOTE: MFS-593 is identical to MFS-592 but kept for subsequent analysis
+NOTE: MFS-607 is identical to MFS-606 but kept for subsequent analysis
+NOTE: MFS-613 is identical to MFS-612 but kept for subsequent analysis
+NOTE: MFS-624 is identical to MFS-623 but kept for subsequent analysis
+NOTE: MFS-642 is identical to MFS-641 but kept for subsequent analysis
+NOTE: MFS-645 is identical to MFS-644 but kept for subsequent analysis
+NOTE: MFS-67 is identical to MFS-66 but kept for subsequent analysis
+NOTE: MFS-780 is identical to MFS-671 but kept for subsequent analysis
+NOTE: MFS-885 is identical to MFS-672 but kept for subsequent analysis
+NOTE: MFS-770 is identical to MFS-676 but kept for subsequent analysis
+NOTE: MFS-805 is identical to MFS-694 but kept for subsequent analysis
+NOTE: MFS-817 is identical to MFS-700 but kept for subsequent analysis
+NOTE: MFS-820 is identical to MFS-703 but kept for subsequent analysis
+NOTE: MFS-826 is identical to MFS-708 but kept for subsequent analysis
+NOTE: MFS-832 is identical to MFS-715 but kept for subsequent analysis
+NOTE: MFS-720 is identical to MFS-719 but kept for subsequent analysis
+NOTE: MFS-724 is identical to MFS-723 but kept for subsequent analysis
+NOTE: MFS-733 is identical to MFS-732 but kept for subsequent analysis
+NOTE: MFS-735 is identical to MFS-734 but kept for subsequent analysis
+NOTE: MFS-871 is identical to MFS-738 but kept for subsequent analysis
+NOTE: MFS-740 is identical to MFS-739 but kept for subsequent analysis
+NOTE: MFS-75 is identical to MFS-74 but kept for subsequent analysis
+NOTE: MFS-759 is identical to MFS-758 but kept for subsequent analysis
+NOTE: MFS-77 is identical to MFS-76 but kept for subsequent analysis
+NOTE: MFS-807 is identical to MFS-806 but kept for subsequent analysis
+NOTE: MFS-838 is identical to MFS-837 but kept for subsequent analysis
+NOTE: MFS-857 is identical to MFS-856 but kept for subsequent analysis
+NOTE: MFS-87 is identical to MFS-86 but kept for subsequent analysis
+NOTE: MFS-861 is identical to MFS-860 but kept for subsequent analysis
+NOTE: MFS-865 is identical to MFS-864 but kept for subsequent analysis
+NOTE: 42 identical sequences (see below) will be ignored for subsequent analysis
+NOTE: MFS-355 (identical to MFS-129) is ignored but added at the end
+NOTE: MFS-555 (identical to MFS-139) is ignored but added at the end
+NOTE: MFS-556 (identical to MFS-139) is ignored but added at the end
+NOTE: MFS-93 (identical to MFS-139) is ignored but added at the end
+NOTE: MFS-94 (identical to MFS-139) is ignored but added at the end
+NOTE: MFS-170 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-292 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-374 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-375 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-638 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-639 (identical to MFS-156) is ignored but added at the end
+NOTE: MFS-575 (identical to MFS-16) is ignored but added at the end
+NOTE: MFS-576 (identical to MFS-16) is ignored but added at the end
+NOTE: MFS-766 (identical to MFS-172) is ignored but added at the end
+NOTE: MFS-882 (identical to MFS-182) is ignored but added at the end
+NOTE: MFS-89 (identical to MFS-275) is ignored but added at the end
+NOTE: MFS-881 (identical to MFS-279) is ignored but added at the end
+NOTE: MFS-464 (identical to MFS-30) is ignored but added at the end
+NOTE: MFS-465 (identical to MFS-30) is ignored but added at the end
+NOTE: MFS-62 (identical to MFS-30) is ignored but added at the end
+NOTE: MFS-63 (identical to MFS-30) is ignored but added at the end
+NOTE: MFS-866 (identical to MFS-30) is ignored but added at the end
+NOTE: MFS-762 (identical to MFS-302) is ignored but added at the end
+NOTE: MFS-830 (identical to MFS-302) is ignored but added at the end
+NOTE: MFS-654 (identical to MFS-303) is ignored but added at the end
+NOTE: MFS-326 (identical to MFS-306) is ignored but added at the end
+NOTE: MFS-843 (identical to MFS-318) is ignored but added at the end
+NOTE: MFS-583 (identical to MFS-41) is ignored but added at the end
+NOTE: MFS-825 (identical to MFS-445) is ignored but added at the end
+NOTE: MFS-65 (identical to MFS-452) is ignored but added at the end
+NOTE: MFS-772 (identical to MFS-452) is ignored but added at the end
+NOTE: MFS-626 (identical to MFS-478) is ignored but added at the end
+NOTE: MFS-646 (identical to MFS-478) is ignored but added at the end
+NOTE: MFS-647 (identical to MFS-478) is ignored but added at the end
+NOTE: MFS-777 (identical to MFS-478) is ignored but added at the end
+NOTE: MFS-868 (identical to MFS-58) is ignored but added at the end
+NOTE: MFS-869 (identical to MFS-58) is ignored but added at the end
+NOTE: MFS-789 (identical to MFS-676) is ignored but added at the end
+NOTE: MFS-886 (identical to MFS-676) is ignored but added at the end
+NOTE: MFS-887 (identical to MFS-676) is ignored but added at the end
+NOTE: MFS-872 (identical to MFS-738) is ignored but added at the end
+NOTE: MFS-893 (identical to MFS-837) is ignored but added at the end
+Alignment was printed to MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.uniqueseq.phy
+
+For your convenience alignment with unique sequences printed to MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.uniqueseq.phy
+
+
+Create initial parsimony tree by phylogenetic likelihood library (PLL)... 0.057 seconds
+Perform fast likelihood tree search using GTR+ASC model...
+Estimate model parameters (epsilon = 5.000)
+Perform nearest neighbor interchange...
+Estimate model parameters (epsilon = 1.000)
+1. Initial log-likelihood: -14794.415
+Optimal log-likelihood: -14794.409
+Rate parameters:  A-C: 0.96779  A-G: 2.60503  A-T: 0.20464  C-G: 0.60829  C-T: 3.02048  G-T: 1.00000
+Base frequencies:  A: 0.198  C: 0.306  G: 0.328  T: 0.167
+Parameters optimization took 1 rounds (0.077 sec)
+Time for fast ML tree search: 2.775 seconds
+
+NOTE: ModelFinder requires 104 MB RAM!
+ModelFinder will test up to 242 DNA models (sample size: 2080 epsilon: 0.100) ...
+ No. Model         -LnL         df  AIC          AICc         BIC
+  1  GTR+F+ASC     14794.409    653 30894.817    31493.782    34577.818
+  2  GTR+F+ASC+G4  14794.017    654 30896.034    31497.255    34584.674
+  3  GTR+F+ASC+R2  14779.352    655 30868.703    31472.186    34562.984
+  4  GTR+F+ASC+R3  14778.954    657 30871.909    31479.934    34577.470
+ 14  SYM+ASC+R2    14777.975    652 30859.950    31456.664    34537.310
+ 25  TVM+F+ASC+R2  14782.415    654 30872.830    31474.052    34561.471
+ 36  TVMe+ASC+R2   14779.560    651 30861.120    31455.591    34532.840
+ 47  TIM3+F+ASC+R2 14838.051    653 30982.103    31581.068    34665.103
+ 58  TIM3e+ASC+R2  14865.684    650 31031.368    31623.600    34697.448
+ 69  TIM2+F+ASC+R2 14838.052    653 30982.103    31581.068    34665.104
+ 80  TIM2e+ASC+R2  14876.794    650 31053.589    31645.821    34719.669
+ 91  TIM+F+ASC+R2  14799.201    653 30904.402    31503.367    34587.402
+102  TIMe+ASC+R2   14882.382    650 31064.764    31656.997    34730.845
+113  TPM3u+F+ASC+R2 14841.428    652 30986.856    31583.571    34664.217
+124  TPM3+ASC+R2   14867.260    649 31032.521    31622.521    34692.960
+135  TPM2u+F+ASC+R2 14841.431    652 30986.862    31583.577    34664.223
+146  TPM2+ASC+R2   14878.365    649 31054.731    31644.731    34715.171
+157  K3Pu+F+ASC+R2 14802.578    652 30909.156    31505.871    34586.516
+168  K3P+ASC+R2    14883.954    649 31065.909    31655.909    34726.349
+179  TN+F+ASC+R2   14838.400    652 30980.799    31577.514    34658.160
+190  TNe+ASC+R2    14905.836    649 31109.672    31699.672    34770.112
+201  HKY+F+ASC+R2  14841.790    651 30985.580    31580.050    34657.300
+212  K2P+ASC+R2    14907.419    648 31110.838    31698.612    34765.638
+223  F81+F+ASC+R2  15299.395    650 31898.791    32491.023    35564.871
+234  JC+ASC+R2     15318.893    647 31931.785    32517.338    35580.945
+Akaike Information Criterion:           SYM+ASC+R2
+Corrected Akaike Information Criterion: TVMe+ASC+R2
+Bayesian Information Criterion:         TVMe+ASC+R2
+Best-fit model: TVMe+ASC+R2 chosen according to BIC
+
+All model information printed to MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.model.gz
+CPU time for ModelFinder: 16.099 seconds (0h:0m:16s)
+Wall-clock time for ModelFinder: 18.816 seconds (0h:0m:18s)
+
+NOTE: 20 MB RAM (0 GB) is required!
+Estimate model parameters (epsilon = 0.100)
+1. Initial log-likelihood: -15318.896
+2. Current log-likelihood: -14779.538
+Optimal log-likelihood: -14779.537
+Rate parameters:  A-C: 1.07970  A-G: 2.96488  A-T: 0.12414  C-G: 1.12365  C-T: 2.96488  G-T: 1.00000
+Base frequencies:  A: 0.250  C: 0.250  G: 0.250  T: 0.250
+Site proportion and rates:  (0.959,0.780) (0.041,6.090)
+Parameters optimization took 2 rounds (1.120 sec)
+Wrote distance file to... 
+Computing ML distances based on estimated model parameters...
+Calculating distance matrix: done in 0.190404 secs using 99.58% CPU
+Computing ML distances took 0.191653 sec (of wall-clock time) 0.190634 sec (of CPU time)
+Setting up auxiliary I and S matrices: done in 0.00225371 secs using 99.17% CPU
+Computing RapidNJ tree took 0.023222 sec (of wall-clock time) 0.019277 sec (of CPU time)
+Log-likelihood of RapidNJ tree: -14857.471
+--------------------------------------------------------------------
+|             INITIALIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Generating 98 parsimony trees... 5.602 second
+Computing log-likelihood of 98 initial trees ... 3.790 seconds
+Current best score: -14779.538
+
+Do NNI search on 20 best initial trees
+Estimate model parameters (epsilon = 0.100)
+BETTER TREE FOUND at iteration 1: -14779.537
+Iteration 10 / LogL: -14816.284 / Time: 0h:1m:0s
+Iteration 20 / LogL: -14816.135 / Time: 0h:1m:37s
+Finish initializing candidate tree set (20)
+Current best tree score: -14779.537 / CPU time: 76.585
+Number of iterations: 20
+--------------------------------------------------------------------
+|               OPTIMIZING CANDIDATE TREE SET                      |
+--------------------------------------------------------------------
+Iteration 30 / LogL: -14839.988 / Time: 0h:2m:4s (0h:4m:17s left)
+Iteration 40 / LogL: -14863.209 / Time: 0h:2m:23s (0h:3m:15s left)
+Iteration 50 / LogL: -14950.984 / Time: 0h:2m:40s (0h:2m:27s left)
+Iteration 60 / LogL: -14827.126 / Time: 0h:3m:3s (0h:1m:54s left)
+Iteration 70 / LogL: -14821.583 / Time: 0h:3m:22s (0h:1m:22s left)
+Iteration 80 / LogL: -14938.099 / Time: 0h:3m:41s (0h:0m:53s left)
+Iteration 90 / LogL: -14862.344 / Time: 0h:4m:2s (0h:0m:27s left)
+Iteration 100 / LogL: -14873.300 / Time: 0h:4m:25s (0h:0m:2s left)
+TREE SEARCH COMPLETED AFTER 102 ITERATIONS / Time: 0h:4m:29s
+
+--------------------------------------------------------------------
+|                    FINALIZING TREE SEARCH                        |
+--------------------------------------------------------------------
+Performs final model parameters optimization
+Estimate model parameters (epsilon = 0.010)
+1. Initial log-likelihood: -14779.541
+Optimal log-likelihood: -14779.540
+Rate parameters:  A-C: 1.07917  A-G: 2.96516  A-T: 0.12404  C-G: 1.12382  C-T: 2.96516  G-T: 1.00000
+Base frequencies:  A: 0.250  C: 0.250  G: 0.250  T: 0.250
+Site proportion and rates:  (0.959,0.780) (0.041,6.108)
+Parameters optimization took 1 rounds (0.165 sec)
+BEST SCORE FOUND : -14779.540
+
+Testing tree branches by aBayes parametric test...
+0.099 sec.
+Total tree length: 0.007
+
+Total number of iterations: 102
+CPU time used for tree search: 234.831 sec (0h:3m:54s)
+Wall-clock time used for tree search: 248.093 sec (0h:4m:8s)
+Total CPU time used: 253.448 sec (0h:4m:13s)
+Total wall-clock time used: 269.739 sec (0h:4m:29s)
+
+Analysis results written to: 
+  IQ-TREE report:                MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.iqtree
+  Maximum-likelihood tree:       MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.treefile
+  Likelihood distances:          MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.mldist
+  Screen log file:               MtbLongitudinalDiversity/lowAF_variant_calling/data/trees/L2/SNP_concatenate_filtered.fasta.log
+
+Date and Time: Mon Dec  1 12:07:45 2025
