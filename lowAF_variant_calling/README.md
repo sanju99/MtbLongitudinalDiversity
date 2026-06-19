@@ -1,36 +1,11 @@
-# Mtb Megapipe: Illumina Short-Read WGS Variant Calling Pipeline for <i>Mycobacterium tuberculosis</i>
+# Low Frequency Variant Calling and Error Model
 
-To run the pipeline:
+The bioinformatics pipeline to process FASTQ files and perform variant calling with freebayes can be called from `run_smk.sh`.
 
-```
-snakemake --configfile config.yaml --cores 1 --keep-going --use-conda --conda-frontend conda
-```
+If aligning short-read FASTQs to the H37Rv reference genome, use the rules in `rules/rules.smk`. If aligning short-read FASTQs to personal reference genomes, use the rules in `rules/personal_asm.smk`.
 
-Add the flag `--rerun-incomplete` if a snakemake workflow was interrupted and there are incomplete files.
+Both sets of rules call `variantDetector/01_write_lowAF_BED.py` and `variantDetector/03_get_H37Rv_alignment_stats.py`. Only `rules/personal_asm.smk` runs `variantDetector/02_combine_lowAF_variants.py` to combine low frequency variant calls determined from aligning to H37Rv and a personal reference genome in order to compare them.
 
-To create the DAG of jobs, run either of the following. The first will list every sample, the second will list just the steps. 
+Once you have the resulting low frequency variant calls, substitution variants should be processed by `variantDetector/04_prep_variant_tables_for_model.py` before running the error model. Example data and the individual variable means and standard deviations are in `variantDetector/unmixed_only`. The logistic regression model with which to get predictions on new data is `variantDetector/unmixed_only/penalty_none/logistic_model.pkl`, which was fit on the data using the script `variantDetector/05_logistic_model.py`.
 
-```bash
-snakemake --dag | dot -Tsvg > dag.svg
-
-snakemake --rulegraph | dot -Tsvg > dag.svg
-```
-
-<!-- rule repair_reads_bbmap:
-    input:
-        fastq1=f"{run_out_dir}/fastq/{{run_ID}}_R1.fastq.gz",
-        fastq2=f"{run_out_dir}/fastq/{{run_ID}}_R2.fastq.gz"
-    output:
-        fastq1_fixed=f"{run_out_dir}/fastq/{{run_ID}}.R1.fixed.fastq",
-        fastq2_fixed=f"{run_out_dir}/fastq/{{run_ID}}.R2.fixed.fastq",
-    conda:
-        "./envs/bioinformatics.yaml"
-    shell:
-        """
-        bash $CONDA_PREFIX/bin/repair.sh in={input.fastq1} in2={input.fastq2} out={output.fastq1_fixed} out2={output.fastq2_fixed}
-        """ -->
-
-```bash
-# get all human-adapted MTBC taxids
-esearch -db taxonomy -query "txid1773[Subtree]" | efetch -format uid > ./references/phylogeny/human_MTBC_taxids.txt
-```
+Indel variants should be processed and identified using `variantDetector/06_get_unfixed_indels.py` and `variantDetector/07_get_fixed_indels.py`.
