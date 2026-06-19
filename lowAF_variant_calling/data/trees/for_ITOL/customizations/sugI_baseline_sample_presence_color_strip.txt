@@ -1,0 +1,530 @@
+DATASET_COLORSTRIP
+#In colored strip datasets, each ID is associated to a color box/strip and can have an optional label. Color can be specified in hexadecimal, RGB or RGBA notation. When using RGB or RGBA notation, you cannot use COMMA as the dataset separator
+
+#lines starting with a hash are comments and ignored during parsing
+
+#=================================================================#
+#                    MANDATORY SETTINGS                           #
+#=================================================================#
+#select the separator which is used to delimit the data below (TAB,SPACE or COMMA).This separator must be used throughout this file.
+
+SEPARATOR TAB
+#SEPARATOR COMMA
+#SEPARATOR SPACE
+
+#label is used in the legend table (can be changed later)
+DATASET_LABEL	sugI
+
+#dataset color (can be changed later)
+COLOR	#ff0000
+
+#=================================================================#
+#                    OPTIONAL SETTINGS                            #
+#=================================================================#
+
+#If COLOR_BRANCHES is set to 1, branches of the tree will be colored according to the colors of the strips above the leaves.
+#When all children of a node have the same color, it will be colored the same, ie. the color will propagate inwards towards the root.
+COLOR_BRANCHES	0
+
+
+#=================================================================#
+#     all other optional settings can be set or changed later     #
+#           in the web interface (under 'Datasets' tab)           #
+#=================================================================#
+
+#Each dataset can have a legend, which is defined using LEGEND_XXX fields below
+#For each row in the legend, there should be one shape, color and label.
+#Optionally, you can define an exact legend position using LEGEND_POSITION_X and LEGEND_POSITION_Y. To use automatic legend positioning, do NOT define these values
+#Optionally, shape scaling can be present (LEGEND_SHAPE_SCALES). For each shape, you can define a scaling factor between 0 and 1.
+#To order legend entries horizontally instead of vertically, set LEGEND_HORIZONTAL to 1
+#Shape should be a number between 1 and 12, or any protein domain shape definition.
+#1: square
+#2: circle
+#3: star
+#4: right pointing triangle
+#5: left pointing triangle
+#6: checkmark
+#7: solid line
+#8: dashed line
+#9: dotted line
+#10:arrow left
+#11:arrow right
+#12:bidirectional arrow
+
+LEGEND_TITLE	sugI
+#LEGEND_SCALE 	1
+LEGEND_POSITION_X	100
+LEGEND_POSITION_Y	100
+LEGEND_HORIZONTAL	0
+LEGEND_SHAPES	1	1
+LEGEND_COLORS	#ffffff	#1f77b4
+LEGEND_LABELS	0	1
+LEGEND_SHAPE_SCALES	1	1
+
+#width of the colored strip
+#STRIP_WIDTH 25
+
+#left margin, used to increase/decrease the spacing to the next dataset. Can be negative, causing datasets to overlap.
+#MARGIN 0
+
+#border width; if set above 0, a border of specified width (in pixels) will be drawn around the color strip 
+BORDER_WIDTH	1
+
+#border color; used when BORDER_WIDTH is above 0
+BORDER_COLOR	#000000
+
+#if set to 1, border will be drawn completely around each colored strip box
+COMPLETE_BORDER	1
+
+#always show internal values; if set, values associated to internal nodes will be displayed even if these nodes are not collapsed. It could cause overlapping in the dataset display.
+#SHOW_INTERNAL 0
+
+
+#display or hide the individual label inside each colored strip (when defined in the data below)
+#SHOW_STRIP_LABELS 1
+
+#position of the strip label within the box; 'top', 'center' or 'bottom'
+#STRIP_LABEL_POSITION center
+
+#strip label size factor (relative to the tree leaf labels)
+#STRIP_LABEL_SIZE_FACTOR 1
+
+
+#rotation of the strip labels; used only in rectangular tree display mode
+#STRIP_LABEL_ROTATION 0
+
+#strip label shift in pixels (positive or negative)
+#STRIP_LABEL_SHIFT 0
+
+#STRIP_LABEL_COLOR #000000
+
+#draw a black outline around the text (width in pixels)
+#STRIP_LABEL_OUTLINE 0.5
+
+#calculate the label color automatically (black or white), based on the darkness of the color strip
+#STRIP_LABEL_AUTO_COLOR 0
+
+#display or hide the dataset label above the colored strip
+#SHOW_LABELS 1
+
+#dataset label size factor
+#SIZE_FACTOR 1
+
+#dataset label rotation
+#LABEL_ROTATION 0
+
+#dataset label shift in pixels (positive or negative)
+#LABEL_SHIFT 0
+
+#align the dataset label to the tree circle; only applies in circular display mode
+#LABEL_ALIGN_TO_TREE,0
+
+#Internal tree nodes can be specified using IDs directly, or using the 'last common ancestor' method described in iTOL help pages
+
+#=================================================================#
+#       Actual data follows after the "DATA" keyword              #
+#=================================================================#
+DATA
+
+#Examples:
+#assign a red colored strip to leaf 9606, with label 'Human'
+#9606 #ff0000 Human
+
+#assign a green, semi-transparent (alpha 0.5) strip to an internal node, without any label. If 'Show internal values' is set to 'No', this will only be displayed if the node is collapsed. 
+#9606|5664 rgba(0,255,0,0.5)
+
+MFS-115	#1f77b4
+MFS-117	#ffffff
+MFS-119	#1f77b4
+MFS-122	#ffffff
+MFS-123	#1f77b4
+MFS-125	#1f77b4
+MFS-127	#ffffff
+MFS-129	#1f77b4
+MFS-131	#ffffff
+MFS-132	#1f77b4
+MFS-137	#ffffff
+MFS-138	#ffffff
+MFS-140	#ffffff
+MFS-144	#1f77b4
+MFS-148	#ffffff
+MFS-150	#ffffff
+MFS-152	#ffffff
+MFS-156	#1f77b4
+MFS-160	#ffffff
+MFS-162	#1f77b4
+MFS-164	#1f77b4
+MFS-169	#1f77b4
+MFS-172	#ffffff
+ MFS-18	#ffffff
+MFS-190	#ffffff
+MFS-260	#ffffff
+MFS-269	#ffffff
+MFS-274	#ffffff
+MFS-278	#ffffff
+MFS-281	#ffffff
+MFS-282	#ffffff
+MFS-296	#ffffff
+ MFS-30	#ffffff
+MFS-325	#ffffff
+MFS-348	#ffffff
+MFS-388	#1f77b4
+MFS-391	#ffffff
+MFS-393	#1f77b4
+MFS-395	#1f77b4
+MFS-397	#ffffff
+MFS-401	#ffffff
+MFS-402	#ffffff
+MFS-408	#1f77b4
+MFS-410	#ffffff
+MFS-414	#ffffff
+MFS-416	#ffffff
+MFS-420	#1f77b4
+MFS-429	#ffffff
+MFS-435	#ffffff
+MFS-437	#ffffff
+MFS-444	#1f77b4
+MFS-467	#1f77b4
+MFS-470	#ffffff
+MFS-471	#1f77b4
+MFS-473	#ffffff
+MFS-474	#1f77b4
+MFS-542	#ffffff
+MFS-648	#ffffff
+MFS-655	#ffffff
+MFS-662	#1f77b4
+MFS-671	#1f77b4
+MFS-674	#ffffff
+ MFS-68	#ffffff
+MFS-721	#1f77b4
+MFS-727	#ffffff
+MFS-758	#ffffff
+MFS-766	#ffffff
+MFS-777	#1f77b4
+MFS-815	#ffffff
+MFS-839	#ffffff
+MFS-858	#ffffff
+MFS-876	#ffffff
+MFS-890	#1f77b4
+MFS-548	#ffffff
+ MFS-11	#ffffff
+MFS-716	#ffffff
+MFS-856	#ffffff
+MFS-848	#ffffff
+MFS-476	#ffffff
+MFS-555	#ffffff
+MFS-154	#ffffff
+MFS-334	#ffffff
+MFS-277	#ffffff
+MFS-509	#ffffff
+MFS-741	#ffffff
+MFS-265	#ffffff
+MFS-713	#ffffff
+MFS-670	#ffffff
+MFS-108	#ffffff
+MFS-346	#ffffff
+MFS-432	#ffffff
+MFS-342	#ffffff
+MFS-894	#ffffff
+MFS-399	#ffffff
+  MFS-4	#ffffff
+MFS-166	#ffffff
+MFS-583	#ffffff
+MFS-604	#ffffff
+MFS-625	#ffffff
+MFS-763	#ffffff
+ MFS-71	#ffffff
+ MFS-81	#ffffff
+ MFS-51	#ffffff
+MFS-357	#ffffff
+MFS-528	#ffffff
+MFS-590	#ffffff
+MFS-482	#ffffff
+MFS-406	#ffffff
+MFS-646	#ffffff
+MFS-539	#ffffff
+MFS-686	#ffffff
+ MFS-90	#ffffff
+MFS-644	#ffffff
+MFS-681	#ffffff
+MFS-633	#ffffff
+MFS-332	#ffffff
+MFS-427	#ffffff
+MFS-586	#ffffff
+MFS-627	#ffffff
+MFS-659	#ffffff
+ MFS-27	#ffffff
+MFS-535	#ffffff
+MFS-764	#ffffff
+MFS-100	#ffffff
+ MFS-93	#ffffff
+MFS-551	#ffffff
+MFS-584	#ffffff
+MFS-617	#ffffff
+MFS-616	#ffffff
+ MFS-43	#ffffff
+MFS-747	#ffffff
+ MFS-72	#ffffff
+MFS-651	#ffffff
+MFS-370	#ffffff
+MFS-182	#ffffff
+MFS-454	#ffffff
+MFS-719	#ffffff
+MFS-434	#ffffff
+MFS-559	#ffffff
+MFS-866	#ffffff
+MFS-180	#ffffff
+MFS-658	#ffffff
+MFS-516	#ffffff
+MFS-102	#ffffff
+  MFS-9	#ffffff
+MFS-324	#ffffff
+MFS-315	#ffffff
+ MFS-55	#ffffff
+MFS-703	#ffffff
+MFS-888	#ffffff
+MFS-573	#ffffff
+MFS-623	#ffffff
+MFS-725	#ffffff
+ MFS-41	#ffffff
+MFS-553	#ffffff
+MFS-638	#ffffff
+MFS-767	#ffffff
+ MFS-56	#ffffff
+MFS-176	#ffffff
+MFS-621	#ffffff
+MFS-462	#ffffff
+MFS-526	#ffffff
+MFS-611	#ffffff
+MFS-579	#ffffff
+MFS-694	#ffffff
+MFS-135	#ffffff
+MFS-303	#ffffff
+ MFS-47	#ffffff
+MFS-743	#ffffff
+MFS-603	#ffffff
+MFS-697	#ffffff
+MFS-690	#ffffff
+MFS-294	#ffffff
+MFS-754	#ffffff
+ MFS-28	#ffffff
+  MFS-3	#ffffff
+ MFS-66	#ffffff
+MFS-191	#ffffff
+MFS-359	#ffffff
+MFS-602	#ffffff
+MFS-331	#ffffff
+MFS-641	#ffffff
+ MFS-13	#ffffff
+MFS-484	#ffffff
+MFS-824	#ffffff
+MFS-533	#ffffff
+MFS-524	#ffffff
+MFS-714	#ffffff
+MFS-699	#ffffff
+MFS-448	#ffffff
+ MFS-37	#ffffff
+  MFS-7	#ffffff
+MFS-762	#ffffff
+MFS-746	#ffffff
+MFS-695	#ffffff
+MFS-706	#ffffff
+MFS-418	#ffffff
+MFS-310	#ffffff
+MFS-560	#ffffff
+MFS-487	#ffffff
+MFS-689	#ffffff
+MFS-531	#ffffff
+MFS-291	#ffffff
+MFS-715	#ffffff
+ MFS-25	#ffffff
+MFS-868	#ffffff
+MFS-514	#ffffff
+MFS-523	#ffffff
+ MFS-62	#ffffff
+MFS-308	#ffffff
+ MFS-70	#ffffff
+MFS-446	#ffffff
+MFS-550	#ffffff
+MFS-430	#ffffff
+MFS-850	#ffffff
+MFS-327	#ffffff
+ MFS-20	#ffffff
+MFS-103	#ffffff
+MFS-276	#ffffff
+MFS-259	#ffffff
+MFS-581	#ffffff
+MFS-443	#ffffff
+MFS-171	#ffffff
+MFS-708	#ffffff
+MFS-452	#ffffff
+MFS-597	#ffffff
+MFS-884	#ffffff
+MFS-592	#ffffff
+MFS-340	#ffffff
+ MFS-95	#ffffff
+MFS-878	#ffffff
+MFS-842	#ffffff
+MFS-479	#ffffff
+MFS-685	#ffffff
+MFS-765	#ffffff
+MFS-385	#ffffff
+MFS-886	#ffffff
+MFS-364	#ffffff
+MFS-546	#ffffff
+MFS-404	#ffffff
+MFS-520	#ffffff
+MFS-636	#ffffff
+MFS-374	#ffffff
+MFS-319	#ffffff
+MFS-460	#ffffff
+MFS-187	#ffffff
+MFS-656	#ffffff
+MFS-673	#ffffff
+MFS-382	#ffffff
+MFS-844	#ffffff
+MFS-684	#ffffff
+MFS-133	#ffffff
+MFS-711	#ffffff
+ MFS-74	#ffffff
+MFS-687	#ffffff
+MFS-768	#ffffff
+ MFS-45	#ffffff
+MFS-643	#ffffff
+MFS-649	#ffffff
+MFS-107	#ffffff
+MFS-464	#ffffff
+ MFS-91	#ffffff
+MFS-258	#ffffff
+MFS-664	#ffffff
+MFS-161	#ffffff
+MFS-723	#ffffff
+MFS-338	#ffffff
+MFS-594	#ffffff
+ MFS-33	#ffffff
+MFS-688	#ffffff
+MFS-142	#ffffff
+ MFS-35	#ffffff
+MFS-544	#ffffff
+MFS-439	#ffffff
+MFS-678	#ffffff
+MFS-558	#ffffff
+MFS-194	#ffffff
+MFS-789	#ffffff
+ MFS-76	#ffffff
+MFS-732	#ffffff
+MFS-770	#ffffff
+MFS-704	#ffffff
+MFS-321	#ffffff
+MFS-518	#ffffff
+MFS-360	#ffffff
+ MFS-54	#ffffff
+MFS-458	#ffffff
+MFS-640	#ffffff
+ MFS-88	#ffffff
+  MFS-5	#ffffff
+MFS-737	#ffffff
+MFS-184	#ffffff
+MFS-289	#ffffff
+ MFS-64	#ffffff
+MFS-320	#ffffff
+MFS-854	#ffffff
+MFS-606	#ffffff
+MFS-181	#ffffff
+MFS-710	#ffffff
+MFS-601	#ffffff
+MFS-739	#ffffff
+MFS-557	#ffffff
+MFS-637	#ffffff
+MFS-480	#ffffff
+MFS-300	#ffffff
+ MFS-49	#ffffff
+MFS-344	#ffffff
+MFS-734	#ffffff
+MFS-787	#ffffff
+MFS-381	#ffffff
+MFS-614	#ffffff
+MFS-185	#ffffff
+MFS-801	#ffffff
+MFS-702	#ffffff
+MFS-146	#ffffff
+MFS-298	#ffffff
+MFS-174	#ffffff
+MFS-612	#ffffff
+MFS-511	#ffffff
+MFS-892	#ffffff
+MFS-717	#ffffff
+MFS-745	#ffffff
+MFS-366	#ffffff
+MFS-852	#ffffff
+MFS-575	#ffffff
+ MFS-15	#ffffff
+MFS-329	#ffffff
+MFS-701	#ffffff
+ MFS-98	#ffffff
+MFS-106	#ffffff
+MFS-372	#ffffff
+MFS-369	#ffffff
+MFS-738	#ffffff
+ MFS-58	#ffffff
+MFS-773	#ffffff
+ MFS-97	#ffffff
+ MFS-16	#ffffff
+MFS-860	#ffffff
+MFS-530	#ffffff
+MFS-675	#ffffff
+MFS-519	#ffffff
+ MFS-86	#ffffff
+MFS-574	#ffffff
+MFS-806	#ffffff
+MFS-111	#ffffff
+  MFS-1	#ffffff
+MFS-158	#ffffff
+MFS-862	#ffffff
+MFS-305	#ffffff
+MFS-846	#ffffff
+MFS-629	#ffffff
+MFS-700	#ffffff
+MFS-610	#ffffff
+MFS-521	#ffffff
+MFS-668	#ffffff
+MFS-571	#ffffff
+MFS-812	#ffffff
+MFS-264	#ffffff
+MFS-178	#ffffff
+MFS-362	#ffffff
+MFS-682	#ffffff
+MFS-104	#ffffff
+MFS-412	#ffffff
+MFS-751	#ffffff
+MFS-441	#ffffff
+ MFS-60	#ffffff
+MFS-693	#ffffff
+MFS-691	#ffffff
+MFS-692	#ffffff
+MFS-287	#ffffff
+MFS-368	#ffffff
+MFS-753	#ffffff
+MFS-323	#ffffff
+MFS-566	#ffffff
+MFS-564	#ffffff
+MFS-285	#ffffff
+MFS-588	#ffffff
+MFS-677	#ffffff
+ MFS-32	#ffffff
+MFS-293	#ffffff
+MFS-729	#ffffff
+MFS-383	#ffffff
+MFS-698	#ffffff
+MFS-709	#ffffff
+ MFS-80	#ffffff
+MFS-864	#ffffff
+MFS-537	#ffffff
+ MFS-83	#ffffff
+MFS-837	#ffffff
+MFS-672	#ffffff
+MFS-619	#ffffff
+MFS-683	#ffffff
+MFS-292	#ffffff
+ MFS-22	#ffffff
+MFS-355	#ffffff
