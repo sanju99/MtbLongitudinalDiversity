@@ -40,8 +40,38 @@ rule all:
         # [f"{output_dir}/{sample}/PB/Flye_Assembly_RenamedAndLengthFiltered/{sample}.flyeassembly.I3.Renamed.100Kb.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/IlluminaWGS/Kraken2/{sample}.R{num}.kraken.filtered.fastq.gz" for sample in input_All_SampleIDs for num in [1, 2]],
         # [f"{output_dir}/{sample}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/{sample}.Flye.I3Asm.PilonPolished.fasta" for sample in input_All_SampleIDs],
-        [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3AsmPP/{sample}.AsmToRef.FlyeI3AsmPP.lineage_call.tsv" for sample in input_All_SampleIDs],
-        [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3Asm/{sample}.AsmToRef.FlyeI3Asm.lineage_call.tsv" for sample in input_All_SampleIDs]
+        # [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3AsmPP/{sample}.AsmToRef.FlyeI3AsmPP.lineage_call.tsv" for sample in input_All_SampleIDs],
+        # [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3Asm/{sample}.AsmToRef.FlyeI3Asm.lineage_call.tsv" for sample in input_All_SampleIDs],
+        [f"{output_dir}/{sample}/PB/kraken/kraken_report_standard_DB.txt" for sample in input_All_SampleIDs]
+
+
+
+rule Pacbio_kraken_classification:
+    input:
+        PB_reads_fq = lambda wildcards: SampleID_To_PB_FQ_Dict[wildcards.sample_ID]
+    output:
+        kraken_report = f"{sample_out_dir}/PB/kraken/kraken_report_standard_DB.txt",
+        kraken_classifications = temp(f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB"),
+        kraken_classifications_zipped = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB.txt.gz"
+    params:
+        kraken_db = config['kraken_db'],
+    threads:
+        8
+    shell:
+        """
+        source activate /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda/f37b23e402e32aeb54fd9892801493ef_
+        
+        # --confidence is the minimum fraction of k-mers in a read that must match a given taxon for that read to be assigned to that taxon
+        kraken2 --db {params.kraken_db} \
+                --threads {threads} \
+                --confidence 0 \
+                --gzip-compressed \
+                --report {output.kraken_report} \
+                --output {output.kraken_classifications} \
+                {input.PB_reads_fq}
+                
+        gzip -c {output.kraken_classifications} > {output.kraken_classifications_zipped}
+        """
 
 
 
