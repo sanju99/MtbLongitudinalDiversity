@@ -1,0 +1,7 @@
+RefGenome_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/M_avium_104_NC_008595.1.fna'
+DnaA_FA_PATH: '/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/references/ref_genome/dnaA_M_avium_104_NC_008595.1.fna'
+Kraken2_DB_PATH: "/n/data1/hms/dbmi/farhat/mm774/References/Kraken2_DB_Dir/Kraken2_DB"
+output_dir: "/n/data1/hms/dbmi/farhat/rollingDB/TRUST/M_avium_ASMs"
+inputSampleData_TSV: "/home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/data/NTM_data_to_run.tsv"
+Illumina_FQ_DIR: "/n/data1/hms/dbmi/farhat/fastq_db/TRUST_Illumina/TRUST.SRWGS.FQs.AllSets.RenamedAndLanesMerged"
+taxid: 1764 # M. avium

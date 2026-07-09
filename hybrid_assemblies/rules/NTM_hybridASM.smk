@@ -9,7 +9,7 @@ import pandas as pd
 refGenome_FA_PATH = config["RefGenome_FA_PATH"]
 Illumina_FQ_DIR = config["Illumina_FQ_DIR"]
 
-H37rv_DnaA_FA_PATH = config["H37rv_DnaA_FA_PATH"]
+DnaA_FA_PATH = config["DnaA_FA_PATH"]
 
 # Define PATH of main OUTPUT directory
 output_dir = config["output_dir"]
@@ -35,15 +35,16 @@ Illumina_MFS_to_Original_ID_Dict = dict(input_DataInfo_DF[["Original_ID", "Illum
 
 rule all:
     input:
+        [f"{output_dir}/{sample}/IlluminaWGS/FASTQs_Trimmomatic_Trimming_V2/{sample}_{num}_trimmed.fastq.gz" for sample in input_All_SampleIDs for num in [1, 2]],
         # [f"{output_dir}/{sample}/PB/Flye_Assembly/assembly.fasta" for sample in input_All_SampleIDs],
-        # [f"{output_dir}/{sample}/PB/Flye_Assembly_RenamedAndLengthFiltered/{sample}.flyeassembly.I3.Renamed.100Kb.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/IlluminaWGS/Kraken2/{sample}.R{num}.kraken.filtered.fastq.gz" for sample in input_All_SampleIDs for num in [1, 2]],
         # [f"{output_dir}/{sample}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/{sample}.Flye.I3Asm.PilonPolished.fasta" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3AsmPP/{sample}.AsmToRef.FlyeI3AsmPP.lineage_call.tsv" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/LineageCalling/LineageCall_FlyeI3Asm/{sample}.AsmToRef.FlyeI3Asm.lineage_call.tsv" for sample in input_All_SampleIDs],
         # [f"{output_dir}/{sample}/PB/kraken/kraken_report_standard_DB.txt" for sample in input_All_SampleIDs]
-        # [f"{output_dir}/{sample}/PB/kraken/MTBC.reads.fastq.gz" for sample in input_All_SampleIDs],
-        [f"{output_dir}/{sample}/PB/kraken/Flye_Assembly/assembly.fasta" for sample in input_All_SampleIDs]
+        # [f"{output_dir}/{sample}/PB/NTM.reads.fastq.gz" for sample in input_All_SampleIDs],
+        # [f"{output_dir}/{sample}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/BUSCO/short_summary.specific.actinobacteria_class_odb10.BUSCO.txt" for sample in input_All_SampleIDs],
+        # [f"{output_dir}/{sample}/PB/Flye_Assembly_RenamedAndLengthFiltered/{sample}.flyeassembly.I3.fixstart.fasta" for sample in input_All_SampleIDs],
 
 
 
@@ -52,8 +53,7 @@ rule PacBio_kraken_classification:
         PB_reads_fq = lambda wildcards: SampleID_To_PB_FQ_Dict[wildcards.sample_ID]
     output:
         kraken_report = f"{sample_out_dir}/PB/kraken/kraken_report_standard_DB.txt",
-        kraken_classifications = temp(f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB"),
-        kraken_classifications_zipped = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB.txt.gz"
+        kraken_classifications = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB",
     params:
         kraken_db = config['Kraken2_DB_PATH'],
     threads:
@@ -70,8 +70,6 @@ rule PacBio_kraken_classification:
                 --report {output.kraken_report} \
                 --output {output.kraken_classifications} \
                 {input.PB_reads_fq}
-                
-        gzip -c {output.kraken_classifications} > {output.kraken_classifications_zipped}
         """
 
 
@@ -79,10 +77,9 @@ rule PacBio_kraken_classification:
 
 rule PacBio_extract_kraken_read_names:
     input:
-        kraken_classifications = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB.txt.gz",
+        kraken_classifications = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB",
     output:  
-        kraken_classifications_gzipped = f"{sample_out_dir}/PB/kraken/kraken_classifications_standard_DB.csv.gz",
-        keep_read_names = f"{sample_out_dir}/PB/kraken/keep_read_names.txt",
+        keep_read_names = f"{sample_out_dir}/PB/keep_read_names.txt",
     params:
         kraken_db = config['Kraken2_DB_PATH'],
         extract_kraken_reads_script = os.path.join(primary_directory, "scripts", "extract_kraken_read_names.py"),
@@ -96,9 +93,6 @@ rule PacBio_extract_kraken_read_names:
                 -o {output.keep_read_names} \
                 --include-children \
                 --include-parents
-                
-        # delete this because the python script creates a CSV file version
-        rm {input.kraken_classifications}
         """
 
 
@@ -106,9 +100,9 @@ rule PacBio_extract_kraken_read_names:
 rule PacBio_extract_kraken_reads:
     input:
         PB_reads_fq = lambda wildcards: SampleID_To_PB_FQ_Dict[wildcards.sample_ID],
-        keep_read_names = f"{sample_out_dir}/PB/kraken/keep_read_names.txt",
+        keep_read_names = f"{sample_out_dir}/PB/keep_read_names.txt",
     output:
-        PB_reads_fq_classified = f"{sample_out_dir}/PB/kraken/MTBC.reads.fastq.gz",
+        PB_reads_fq_classified = f"{sample_out_dir}/PB/NTM.reads.fastq.gz",
     conda:
         "/home/sak0914/Mtb_Megapipe/envs/read_processing_aln.yaml"
     shell:
@@ -123,44 +117,51 @@ rule PacBio_extract_kraken_reads:
    
 rule flye_Assemble_PB_CCS_kraken_filtered: # Flye v2.9.2 w/ asmCov = 200
     input:
-        PB_reads_fq_classified = f"{sample_out_dir}/PB/kraken/MTBC.reads.fastq.gz",
-    output:
-        assembly_fa = f"{sample_out_dir}/PB/kraken/Flye_Assembly/assembly.fasta",
-        assembly_info_txt = f"{sample_out_dir}/PB/kraken/Flye_Assembly/assembly_info.txt"
-    conda:
-        f"{primary_directory}/envs/flye.yaml"
-    threads: 
-        10
-    params:
-        Flye_OutputDir_PATH = f"{sample_out_dir}/PB/kraken/Flye_Assembly/"
-    shell:
-        "flye --pacbio-hifi {input.PB_reads_fq_classified} --out-dir {params.Flye_OutputDir_PATH} "
-        "--genome-size 4.4m --threads {threads} --asm-coverage 200 --iterations 3 "
-        #" --resume "
-        
-        
-        
-
-
-rule flye_Assemble_PB_CCS: # Flye v2.9.2 w/ asmCov = 200
-    input:
-        PB_reads_fq = lambda wildcards: SampleID_To_PB_FQ_Dict[wildcards.sample_ID]
+        PB_reads_fq_classified = f"{sample_out_dir}/PB/NTM.reads.fastq.gz",
     output:
         assembly_fa = f"{sample_out_dir}/PB/Flye_Assembly/assembly.fasta",
         assembly_info_txt = f"{sample_out_dir}/PB/Flye_Assembly/assembly_info.txt"
     conda:
         f"{primary_directory}/envs/flye.yaml"
     threads: 
-        10
+        8
     params:
         Flye_OutputDir_PATH = f"{sample_out_dir}/PB/Flye_Assembly/"
     shell:
-        "flye --pacbio-hifi {input.PB_reads_fq} --out-dir {params.Flye_OutputDir_PATH} "
-        "--genome-size 4.4m --threads {threads} --asm-coverage 200 --iterations 3 "
-        #" --resume "
+        """
+        flye --pacbio-hifi {input.PB_reads_fq_classified} \
+             --out-dir {params.Flye_OutputDir_PATH} \
+             --genome-size 5.5m \
+             --threads {threads} \
+             --asm-coverage 200 \
+             --iterations 3
+        """
+        
 
 
 
+rule run_busco_on_draft_assembly: # Flye v2.9.2 w/ asmCov = 200
+    input:
+        assembly_fa = f"{sample_out_dir}/PB/Flye_Assembly/assembly.fasta",
+    output:
+        busco_output = f"{sample_out_dir}/PB/Flye_Assembly/BUSCO/short_summary.specific.actinobacteria_class_odb10.BUSCO.txt",
+    # conda:
+    #    f"{primary_directory}/envs/busco.yaml"
+    threads: 
+        1
+    params:
+        output_path = f"{sample_out_dir}/PB/Flye_Assembly/BUSCO"
+    shell:
+        """
+        source activate /home/sak0914/anaconda3/envs/snakemake/envs/busco
+        
+        # the Actinobacteria class is the deepest taxonomic level that of BUSCOv.4 lineages available:
+        # https://busco.ezlab.org/list_of_lineages.html
+        # -f forces creation of a new directory, which is necessary to overwrite an existing one
+        busco -m genome -i {input.assembly_fa} -o {params.output_path} -l actinobacteria_class_odb10 -f
+        """
+        
+        
 
 ###################################################################################
 ######### CIRCLATOR for setting start at DnaA (Assuming Circular genome) ##########
@@ -168,7 +169,7 @@ rule flye_Assemble_PB_CCS: # Flye v2.9.2 w/ asmCov = 200
 
 rule circlator_FixStart_DnaA:
     input:
-        DnaA_Seq_fa = H37rv_DnaA_FA_PATH,
+        DnaA_Seq_fa = DnaA_FA_PATH,
         flye_assembly_fa = f"{sample_out_dir}/PB/Flye_Assembly/assembly.fasta"
     output:
         flye_assembly_FixStart_assembly = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.fixstart.fasta",
@@ -185,92 +186,8 @@ rule circlator_FixStart_DnaA:
         circlator fixstart --genes_fa {input.DnaA_Seq_fa} {input.flye_assembly_fa} {params.circlator_out_prefix}
         """
 
+
 ###################################################################################
-
-
-
-### Filter long read assembly (Flye 3X polished) for only contigs greater than 100kb
-
-rule filterByLength_100kbCPBigs_FlyeAssembly_I3:
-    input:
-        PacBio_Flye_Assembly_fa = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.fixstart.fasta",
-    output:
-        PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta",
-        PacBio_Flye_Assembly_Renamed_100KbCPBigs_FAI = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta.fai"
-    threads: 1
-    conda:
-        f"{primary_directory}/envs/bioinfo_util_env_V1.yaml"
-    shell:
-        " bioawk -c fastx '{{ print \">{wildcards.sample_ID}_\"$name \"\\n\" $seq }}' {input.PacBio_Flye_Assembly_fa} "
-        " | "
-        " bioawk -c fastx '{{ if(length($seq) > 100000) {{ print \">\"$name; print $seq }}}}' > {output.PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA} \n"
-        " samtools faidx {output.PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA} "
-
-
-
-
-rule align_flye_assembly_to_H37Rv:
-    input:
-        FlyeAsm_I3_FA = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta",
-    output:
-        sam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.Flye.I3Asm.H37Rv.sam",
-    params:
-        refGenome_FA_PATH = refGenome_FA_PATH,
-    threads: 
-        8
-    shell:
-        """
-        source activate /home/sak0914/anaconda3/envs/liftoff
-        
-        minimap2 -ax asm5 {params.refGenome_FA_PATH} {input} -t {threads} -o {output.sam_file}
-        """
-        
-        
-        
-rule flye_assembly_variants_relative_to_H37Rv:
-    input:
-        sam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.Flye.I3Asm.H37Rv.sam",
-    output:
-        bam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.Flye.I3Asm.H37Rv.bam",
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.vcf",
-        fasta_file = temp(f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.fasta"),
-    # conda:
-    #     f"{primary_directory}/envs/IlluminaPE_Processing.yaml"
-    params:
-        refGenome_FA_PATH = refGenome_FA_PATH,
-        Pilon_OutputDir_PATH = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/"
-    shell:
-        """
-        source activate /home/sak0914/anaconda3/envs/IlluminaPE_Processing
-             
-        samtools sort {input.sam_file} -o {output.bam_file} 
-        samtools index {output.bam_file}
-                 
-        pilon -Xmx14g --genome {params.refGenome_FA_PATH} \
-                       --bam {output.bam_file} \
-                       --output {wildcards.sample_ID} \
-                       --outdir {params.Pilon_OutputDir_PATH} \
-                       --variant
-                       
-        rm {input.sam_file}
-        """
-        
-
-
-rule fast_lineage_caller_flye_assembly_H37Rv_aligned_VCF:
-    input:
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.vcf"
-    output:
-        lineage_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.AsmToRef.FlyeI3Asm.lineage_call.tsv",
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3Asm/{{sample_ID}}.vcf.gz",
-    shell:
-        """
-        fast-lineage-caller --pass --out {output.lineage_file} {input.vcf_file}
-        
-        # gzip the vcf
-        gzip {input.vcf_file}
-        """
-
 
 
 # adapter list from: https://github.com/stephenturner/adapters/blob/master/adapters_combined_256_unique.fasta
@@ -327,8 +244,7 @@ rule kraken_classification:
                 --paired {input.r1} {input.r2} \
                 --gzip-compressed \
                 --report {output.kraken_report} \
-                --output {output.kraken_classifications} \
-                --memory-mapping
+                --output {output.kraken_classifications}
         """
 
 
@@ -338,7 +254,7 @@ rule extract_kraken_read_names:
         kraken_classifications = f"{sample_out_dir}/IlluminaWGS/Kraken2/kraken_classifications_standard_DB",
     output:  
         kraken_classifications_gzipped = f"{sample_out_dir}/IlluminaWGS/Kraken2/kraken_classifications_standard_DB.csv.gz",
-        keep_read_names = f"{sample_out_dir}/IlluminaWGS/Kraken2/keep_read_names.txt",
+        keep_read_names = f"{sample_out_dir}/IlluminaWGS/Kraken2/NTM_read_names.txt",
     params:
         kraken_db = config['Kraken2_DB_PATH'],
         extract_kraken_reads_script = os.path.join(primary_directory, "scripts", "extract_kraken_read_names.py"),
@@ -352,8 +268,6 @@ rule extract_kraken_read_names:
                 -o {output.keep_read_names} \
                 --include-children \
                 --include-parents
-                
-        rm {input.kraken_classifications}
         """
 
 
@@ -362,7 +276,7 @@ rule extract_kraken_reads:
     input:
         r1 = f"{sample_out_dir}/IlluminaWGS/FASTQs_Trimmomatic_Trimming_V2/{{sample_ID}}_1_trimmed.fastq.gz",
         r2 = f"{sample_out_dir}/IlluminaWGS/FASTQs_Trimmomatic_Trimming_V2/{{sample_ID}}_2_trimmed.fastq.gz",
-        keep_read_names = f"{sample_out_dir}/IlluminaWGS/Kraken2/keep_read_names.txt",
+        keep_read_names = f"{sample_out_dir}/IlluminaWGS/Kraken2/NTM_read_names.txt",
     output:
         fastq1_trimmed_classified = f"{sample_out_dir}/IlluminaWGS/Kraken2/{{sample_ID}}.R1.kraken.filtered.fastq.gz",
         fastq2_trimmed_classified = f"{sample_out_dir}/IlluminaWGS/Kraken2/{{sample_ID}}.R2.kraken.filtered.fastq.gz",    
@@ -373,9 +287,7 @@ rule extract_kraken_reads:
         # seqtk will write outputs to unzipped files, even if the input was compressed
         seqtk subseq {input.r1} {input.keep_read_names} | gzip -c > {output.fastq1_trimmed_classified} 
         seqtk subseq {input.r2} {input.keep_read_names} | gzip -c > {output.fastq2_trimmed_classified} 
-        
-        rm {input.r1} {input.r2}
-        
+                
         gzip {input.keep_read_names}
         """
         
@@ -386,6 +298,25 @@ rule extract_kraken_reads:
 
 
 
+### Filter long read assembly (Flye 3X polished) for only contigs greater than 100kb
+
+rule filterByLength_100kbCPBigs_FlyeAssembly_I3:
+    input:
+        PacBio_Flye_Assembly_fa = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.fixstart.fasta",
+    output:
+        PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta",
+        PacBio_Flye_Assembly_Renamed_100KbCPBigs_FAI = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta.fai"
+    threads: 1
+    conda:
+        f"{primary_directory}/envs/bioinfo_util_env_V1.yaml"
+    shell:
+        " bioawk -c fastx '{{ print \">{wildcards.sample_ID}_\"$name \"\\n\" $seq }}' {input.PacBio_Flye_Assembly_fa} "
+        " | "
+        " bioawk -c fastx '{{ if(length($seq) > 100000) {{ print \">\"$name; print $seq }}}}' > {output.PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA} \n"
+        " samtools faidx {output.PacBio_Flye_Assembly_Renamed_100KbCPBigs_FA} "
+        
+        
+        
 rule bwa_map_IllPE_AlignTo_I3_Assembly:
     input:
         FlyeAsm_I3_FA = f"{sample_out_dir}/PB/Flye_Assembly_RenamedAndLengthFiltered/{{sample_ID}}.flyeassembly.I3.Renamed.100Kb.fasta",
@@ -405,7 +336,7 @@ rule bwa_map_IllPE_AlignTo_I3_Assembly:
         
         bwa index {input.FlyeAsm_I3_FA}
         
-        bwa mem -M -R '{params.rg}' -t {threads} {input.FlyeAsm_I3_FA} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output}
+        bwa mem -k 80 -M -R '{params.rg}' -t {threads} {input.FlyeAsm_I3_FA} {input.fastq1_trimmed_classified} {input.fastq2_trimmed_classified} > {output}
         """
 
 
@@ -510,69 +441,29 @@ rule pilon_IllPE_Polishing_I3_Asm:
         gzip -c {output.pilon_VCF} > {output.pilon_VCF_gzipped}
         """
                 
-        
-        
-rule align_pilon_polished_assembly_to_H37Rv:
+
+
+rule run_busco_on_polished_assembly: # Flye v2.9.2 w/ asmCov = 200
     input:
-        f"{sample_out_dir}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/{{sample_ID}}.Flye.I3Asm.PilonPolished.fasta",
+        I3M_Asm_PilonPolished_FA = f"{sample_out_dir}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/{{sample_ID}}.Flye.I3Asm.PilonPolished.fasta",
     output:
-        sam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.Flye.I3Asm.PilonPolished.H37Rv.sam",
-    params:
-        refGenome_FA_PATH = refGenome_FA_PATH,
-    threads: 
-        8
-    shell:
-        """
-        source activate /home/sak0914/anaconda3/envs/liftoff
-        
-        minimap2 -ax asm5 {params.refGenome_FA_PATH} {input} -t {threads} -o {output.sam_file}
-        """
-        
-        
-        
-rule call_pilon_polished_assembly_variants_relative_to_H37Rv:
-    input:
-        sam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.Flye.I3Asm.PilonPolished.H37Rv.sam",
-    output:
-        bam_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.Flye.I3Asm.PilonPolished.H37Rv.bam",
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.vcf",
-        fasta_file = temp(f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.fasta"),
+        busco_output = f"{sample_out_dir}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/BUSCO/short_summary.specific.actinobacteria_class_odb10.BUSCO.txt",
     # conda:
-    #     f"{primary_directory}/envs/IlluminaPE_Processing.yaml"
+    #    f"{primary_directory}/envs/busco.yaml"
+    threads: 
+        1
     params:
-        refGenome_FA_PATH = refGenome_FA_PATH,
-        Pilon_OutputDir_PATH = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/"
+        output_path = f"{sample_out_dir}/FlyeAssembly_I3_PilonPolishing/pilon_IllPE_Polishing_I3_Asm_ChangeSNPsINDELsOnly/BUSCO"
     shell:
         """
-        source activate /home/sak0914/anaconda3/envs/IlluminaPE_Processing
-             
-        samtools sort {input.sam_file} -o {output.bam_file} 
-        samtools index {output.bam_file}
+        source activate /home/sak0914/anaconda3/envs/snakemake/envs/busco
         
-        rm {input.sam_file}
-         
-        pilon -Xmx14g --genome {params.refGenome_FA_PATH} \
-                       --bam {output.bam_file} \
-                       --output {wildcards.sample_ID} \
-                       --outdir {params.Pilon_OutputDir_PATH} \
-                       --variant
+        # the Actinobacteria class is the deepest taxonomic level that of BUSCOv.4 lineages available:
+        # https://busco.ezlab.org/list_of_lineages.html
+        # -f forces creation of a new directory, which is necessary to overwrite an existing one
+        busco -m genome -i {input.I3M_Asm_PilonPolished_FA} -o {params.output_path} -l actinobacteria_class_odb10 -f
         """
         
-
-
-rule fast_lineage_caller_pilon_polished_H37Rv_aligned_VCF:
-    input:
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.vcf"
-    output:
-        lineage_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.AsmToRef.FlyeI3AsmPP.lineage_call.tsv",
-        vcf_file = f"{sample_out_dir}/LineageCalling/LineageCall_FlyeI3AsmPP/{{sample_ID}}.vcf.gz",
-    shell:
-        """
-        fast-lineage-caller --pass --out {output.lineage_file} {input.vcf_file}
         
-        # gzip the vcf
-        gzip {input.vcf_file}
-        """
-
-
+        
 ###############################################################

@@ -74,7 +74,11 @@ else:
 parent_taxids = get_parent_taxids(taxid, parent_map)
 child_taxids = get_child_taxids(taxid, child_map)
 
-df_kraken_classifications = pd.read_csv(in_fName, sep='\t', header=None)
+if '.csv' in in_fName:
+    df_kraken_classifications = pd.read_csv(in_fName)
+else:
+    df_kraken_classifications = pd.read_csv(in_fName, sep='\t', header=None)
+
 df_kraken_classifications.columns = ['Classified', 'ReadName', 'TaxID', 'Length', 'LCA_kmers']
 
 # keep the argument taxid and children
@@ -86,4 +90,6 @@ print(f"Keeping {len(keep_reads)}/{len(df_kraken_classifications)} ({np.round(le
 keep_reads.to_csv(out_fName, sep='\t', header=None, index=False)
 
 # gzip the kraken classifications file
-df_kraken_classifications.to_csv(in_fName + ".csv.gz", compression='gzip', index=False)
+if in_fName != in_fName.split('.')[0] + ".csv.gz":
+    df_kraken_classifications.to_csv(in_fName.split('.')[0] + ".csv.gz", compression='gzip', index=False)
+    os.remove(in_fName)

@@ -1,8 +1,8 @@
 #!/bin/bash 
 #SBATCH -c 8
-#SBATCH -t 0-02:00
+#SBATCH -t 0-11:59
 #SBATCH -p short
-#SBATCH --mem=10G
+#SBATCH --mem=100G
 #SBATCH -o /home/sak0914/Errors/zerrors_%j.out 
 #SBATCH -e /home/sak0914/Errors/zerrors_%j.err
 #SBATCH --mail-type=ALL
@@ -10,23 +10,23 @@
 
 source activate snakemake
 
-snakemake --snakefile rules/Marin_generatehybridASM_PacBio.smk \
-          --configfile  config_hybridASM.yaml \
+snakemake --snakefile rules/NTM_hybridASM.smk \
+          --configfile  config_ASM_NTM.yaml \
           --cores 8 \
           --use-conda \
           --conda-frontend mamba \
-          --resources mem_mb=50000 \
+          --resources mem_mb=100000 \
           --rerun-incomplete --keep-going \
           --directory /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies \
           --conda-prefix /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda \
           --unlock
 
-snakemake --snakefile rules/Marin_generatehybridASM_PacBio.smk \
-          --configfile  config_hybridASM.yaml \
+snakemake --snakefile rules/NTM_hybridASM.smk \
+          --configfile  config_ASM_NTM.yaml \
           --cores 8 \
           --use-conda \
           --conda-frontend mamba \
-          --resources mem_mb=50000 \
+          --resources mem_mb=100000 \
           --rerun-incomplete --keep-going \
           --directory /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies \
           --conda-prefix /home/sak0914/MtbLongitudinalDiversity/hybrid_assemblies/.snakemake/conda #--dry-run
